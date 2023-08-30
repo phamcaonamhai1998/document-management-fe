@@ -4,14 +4,14 @@ export declare namespace NDepartment {
     name: string
     email: string
     phone: string
-    organizationId: string
+    // organizationId: string
   }
 
   export interface FormStateDepartmentDto {
     name: string
     email: string
     phone: string
-    organizationId: string
+    // organizationId: string
   }
 
   export interface ICreateDepartmentRequest extends FormStateDepartmentDto {}

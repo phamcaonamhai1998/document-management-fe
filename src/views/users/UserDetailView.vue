@@ -2,27 +2,40 @@
 import { defineComponent, onMounted, reactive, ref } from 'vue';
 import { useMenu } from '../../stores/use-menu';
 import '../../styles/_variables.scss';
-import { notification, type FormInstance } from 'ant-design-vue';
+import { notification, type FormInstance, type SelectProps } from 'ant-design-vue';
 import type { Rule } from 'ant-design-vue/lib/form/interface';
 import axios from 'axios';
 import { useRoute } from 'vue-router';
 import type { NUser } from '../../interface/user';
 import type { NOrganization } from '../../interface/organization';
 import type { NDepartment } from '../../interface/department';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
+import { ADMIN_ID, ORG_OWNER_ID, SERVER_RESOURCE, TOKEN_KEY } from '../../constants/index.constant';
 import type { NRole } from '../../interface/role';
+import router from '../../router';
+import jwt_decode from 'jwt-decode';
+import type { SelectValue } from 'ant-design-vue/lib/select';
+
+
+interface getRoleRequest {
+    departmentId: string
+}
 
 
 export default defineComponent({
-    // components: {
-    //     PlusOutlined,
-    // },
+
     setup() {
         const store = useMenu();
         store.onSelectedKeys(["users"]);
         const roles = ref<NRole.IRole[]>([]);
         const organizations = ref<NOrganization.IOrganization[]>([]);
         const departments = ref<NDepartment.IDepartment[]>([]);
+        const isDisableRole = ref<boolean>(true);
+        // const isDisableDep = ref<boolean>(false);
+        const token = localStorage.getItem(TOKEN_KEY)
+        const decodeToken: any = token && jwt_decode(token);
+        const depIdState = ref<string>('');
+        // const orgIdState = ref<string>('');
+
 
         const formRef = ref<FormInstance>();
         const formState = reactive<NUser.FormStateUserDto>({
@@ -38,9 +51,22 @@ export default defineComponent({
             confirmPassword: '',
 
         });
-
         const route = useRoute();
         const id: string = route.params.id as string;
+        const orgClaim = decodeToken?.org ? JSON.parse(decodeToken?.org) : null;
+        const depClaim = decodeToken?.department ? JSON.parse(decodeToken?.department) : null;
+
+        const role = JSON.parse(decodeToken?.role);
+
+        onMounted(() => {
+            if (orgClaim && role.Id === ORG_OWNER_ID) {
+                getAvailableDepsToCreateOwner(orgClaim.Id);
+            }
+            if (orgClaim && depClaim) {
+                isDisableRole.value = false;
+                getRole();
+            }
+        })
 
         onMounted(() => {
             if (id) {
@@ -50,7 +76,7 @@ export default defineComponent({
 
         const getById = async (id: string) => {
             await axios.get(
-                `https://localhost:7138/user/${id}`
+                `${SERVER_RESOURCE}/user/${id}`
             ).then((res) => {
                 if (res.data) {
                     formState.isActive = res.data.isActive
@@ -69,10 +95,36 @@ export default defineComponent({
         }
 
         onMounted(() => {
-            axios.get(`${SERVER_RESOURCE}/role/all`)
+            if (decodeToken?.id === ADMIN_ID) {
+                axios.get(`${SERVER_RESOURCE}/organization/create-owner`)
+                    .then((res) => {
+                        if (res.data.length) {
+                            organizations.value = res.data;
+                        } else {
+                            notification.error({
+                                message: 'All organizations have owners',
+                                type: 'error'
+                            });
+                        }
+                    }).catch((err) => {
+                        console.error(err);
+                        notification.error({
+                            message: 'Can not get organizations',
+                            type: 'error'
+                        });
+                    })
+            }
+        })
+
+        const getRole = () => {
+            const getRoleRequest: getRoleRequest = {
+                departmentId: depIdState.value || '',
+            }
+            axios.get(`${SERVER_RESOURCE}/role/available`, { params: getRoleRequest })
                 .then((res) => {
                     if (res.data) {
                         roles.value = res.data;
+                        isDisableRole.value = false;
                     }
                 }).catch((err) => {
                     console.error(err);
@@ -81,24 +133,14 @@ export default defineComponent({
                         type: 'error'
                     });
                 })
+        }
 
-            axios.get(`${SERVER_RESOURCE}/organization`)
-                .then((res) => {
-                    if (res.data) {
-                        organizations.value = res.data;
-                    }
-                }).catch((err) => {
-                    console.error(err);
-                    notification.error({
-                        message: 'Can not get organizations',
-                        type: 'error'
-                    });
-                })
-
-            axios.get(`${SERVER_RESOURCE}/department`)
+        const getAvailableDepsToCreateOwner = (orgId: string) => {
+            axios.get(`${SERVER_RESOURCE}/department/create-owner/${orgId}`)
                 .then((res) => {
                     if (res.data) {
                         departments.value = res.data;
+                        // isDisableDep.value = false;
                     } else
                         return departments.value = [];
                 }).catch((err) => {
@@ -108,15 +150,43 @@ export default defineComponent({
                         type: 'error'
                     });
                 })
-        })
+        }
 
+        // const onSelectOrg: SelectProps['onChange'] = (orgId: SelectValue) => {
+        //     formState.departmentId = null;
+        //     formState.roleId = null;
+        //     if (orgId) {
+        //         orgIdState.value = orgId.toString();
+        //         getRole();
+        //         getDep(orgId.toString());
+        //     }
+        // };
 
-
+        const onSelectDep: SelectProps['onChange'] = (depId: SelectValue) => {
+            formState.roleId = null;
+            isDisableRole.value = true;
+            if (depId && orgClaim?.Id) {
+                isDisableRole.value = false;
+                depIdState.value = depId.toString();
+                getRole();
+            }
+        }
 
         const onSubmit = async () => {
             try {
-                const values: NUser.ICreateUserRequest = await formRef.value?.validateFields() as NUser.ICreateUserRequest;
-                createUser(values);
+                const createUserRequest: NUser.ICreateUserRequest = await formRef.value?.validateFields() as NUser.ICreateUserRequest;
+                if (decodeToken.id === ADMIN_ID) {
+                    createUserRequest.roleId = ORG_OWNER_ID;
+                }
+                else if (orgClaim) {
+                    createUserRequest.orgId = orgClaim.Id;
+                }
+
+                if (orgClaim && depClaim) {
+                    createUserRequest.orgId = orgClaim.Id
+                    createUserRequest.departmentId = depClaim.Id;
+                }
+                createUser(createUserRequest);
             } catch (errorInfo) {
                 console.log('Failed:', errorInfo);
             }
@@ -124,23 +194,45 @@ export default defineComponent({
 
 
         const createUser = (userDto: NUser.ICreateUserRequest) => {
-            axios.post('https://localhost:7138/user', userDto)
+            axios.post(`${SERVER_RESOURCE}/user`, userDto)
                 .then((res) => {
                     if (res) {
                         notification.success({
                             message: 'Create successfully',
                             type: 'success'
                         });
+                        router.push('/users');
                     }
                 })
                 .catch((error) => {
                     let titleError: string = '';
-                    if (error.response?.data?.message === "user_email_is_existed") {
-                        titleError = 'User email is existed';
+                    switch (error.response?.data?.message) {
+                        case 'user_email_is_existed':
+                            titleError = 'User email is existed';
+                            break;
+                        case 'password_is_empty':
+                            titleError = 'Password is empty';
+                            break;
+                        case 'role_is_empty':
+                            titleError = 'Role is empty';
+                            break;
+                        case 'invalid_role':
+                            titleError = 'Invalid role';
+                            break;
+                        case 'org_is_empty':
+                            titleError = 'Organization is empty';
+                            break;
+                        case 'invalid_org':
+                            titleError = 'Invalid organization';
+                            break;
+                        case 'invalid_department':
+                            titleError = 'Invalid department';
+                            break;
+                        default:
+                            titleError = 'An error has occurred';
+                            break;
                     }
-                    else {
-                        titleError = 'An error has occurred';
-                    }
+
                     console.error(error);
                     notification.error({
                         message: titleError,
@@ -161,20 +253,24 @@ export default defineComponent({
         }
 
         const updateUser = (userUpdateDto: NUser.IUpdateUserRequest) => {
-            axios.put(`https://localhost:7138/user/${id}`, userUpdateDto)
+            axios.put(`${SERVER_RESOURCE}/user/${id}`, userUpdateDto)
                 .then((res) => {
                     if (res) {
                         notification.success({
                             message: 'Update successfully',
                             type: 'success'
                         });
+                        router.push('/users');
                     }
                 })
                 .catch((error) => {
                     console.error(error);
                     let titleError: string = '';
-                    if (error.message === "user_email_is_existed") {
-                        titleError = 'User email is existed';
+                    if (error.response?.data?.message === "payload_is_empty") {
+                        titleError = 'Payload is empty';
+                    }
+                    else if (error.response?.data?.message === "id_is_empty") {
+                        titleError = 'Id is empty'
                     }
                     else {
                         titleError = 'An error has occurred';
@@ -205,15 +301,23 @@ export default defineComponent({
 
         return {
             id,
+            ADMIN_ID,
+            depClaim,
+            decodeToken,
             roles,
             organizations,
             departments,
             formState,
             formRef,
+            isDisableRole,
+            // isDisableDep,
             onSubmit,
             onUpdate,
             validatePassword,
             filterOption,
+            // onSelectOrg,
+            onSelectDep,
+
         };
     },
 });
@@ -224,7 +328,8 @@ export default defineComponent({
 <template>
     <div class="block-container">
         <div class="block-heading">
-            <span>Create User</span>
+            <span v-if="!id">Create User</span>
+            <span v-if="id">Update User</span>
             <div className="header-actions">
                 <a-button type="primary">
                     <router-link :to="{ name: 'users' }">
@@ -260,42 +365,44 @@ export default defineComponent({
                                 <a-switch v-model:checked="formState.isActive" />
                             </a-form-item>
                             <template v-if="!id">
-                                <a-form-item label="Role:" name="roleId"
-                                    :rules="[{ required: true, message: 'Please select user role', trigger: 'change' }]">
-                                    <a-select :allowClear="true" v-model:value="formState.roleId" show-search
-                                        placeholder="Select role" style="width: 400px" :filter-option="filterOption">
+                                <template v-if="decodeToken?.id === ADMIN_ID">
+                                    <a-form-item label="Organization:" name="orgId"
+                                        :rules="[{ required: true, message: 'Please select organization', trigger: 'change' }]">
+                                        <a-select :allowClear="true" v-model:value="formState.orgId" show-search
+                                            placeholder="Select Organization" style="width: 400px"
+                                            :filter-option="filterOption">
+                                            <a-select-option v-for="org in organizations" :key="org.id" :value="org.id">
+                                                {{ org.name }}
+                                            </a-select-option>
+                                        </a-select>
+                                    </a-form-item>
+                                </template>
 
-                                        <a-select-option v-for="role in roles" :key="role.id" :value="role.id">
-                                            {{ role.name }}
-                                        </a-select-option>
+                                <template v-if="decodeToken?.id !== ADMIN_ID && !depClaim?.Id">
+                                    <a-form-item label="Department:" name="departmentId">
+                                        <a-select :allowClear="true" v-model:value="formState.departmentId" show-search
+                                            placeholder="Select Department" style="width: 400px"
+                                            :filter-option="filterOption" @change="onSelectDep">
+                                            <a-select-option v-for="dep in departments" :key="dep.id" :value="dep.id">
+                                                {{ dep.name }}
+                                            </a-select-option>
+                                        </a-select>
+                                    </a-form-item>
+                                </template>
 
-                                    </a-select>
+                                <template v-if="decodeToken?.id !== ADMIN_ID">
+                                    <a-form-item label="Role:" name="roleId"
+                                        :rules="[{ required: true, message: 'Please select user role', trigger: 'change' }]">
+                                        <a-select :allowClear="true" v-model:value="formState.roleId" show-search
+                                            placeholder="Select role" style="width: 400px" :filter-option="filterOption"
+                                            :disabled="isDisableRole">
+                                            <a-select-option v-for="role in roles" :key="role.id" :value="role.id">
+                                                {{ role.name }}
+                                            </a-select-option>
+                                        </a-select>
+                                    </a-form-item>
+                                </template>
 
-                                </a-form-item>
-
-                                <a-form-item label="Organization:" name="orgId"
-                                    :rules="[{ required: true, message: 'Please select organization', trigger: 'change' }]">
-                                    <a-select :allowClear="true" v-model:value="formState.orgId" show-search
-                                        placeholder="Select Organization" style="width: 400px"
-                                        :filter-option="filterOption">
-
-                                        <a-select-option v-for="org in organizations" :key="org.id" :value="org.id">
-                                            {{ org.name }}
-                                        </a-select-option>
-
-                                    </a-select>
-                                </a-form-item>
-
-                                <a-form-item label="Department:" name="departmentId">
-                                    <a-select :allowClear="true" v-model:value="formState.departmentId" show-search
-                                        placeholder="Select Department" style="width: 400px" :filter-option="filterOption">
-
-                                        <a-select-option v-for="dep in departments" :key="dep.id" :value="dep.id">
-                                            {{ dep.name }}
-                                        </a-select-option>
-
-                                    </a-select>
-                                </a-form-item>
                                 <a-form-item label="Email:" name="email"
                                     :rules="[{ required: true, message: 'Please input user email' }, { type: 'email' }]">
                                     <a-input v-model:value="formState.email" />

@@ -20,8 +20,7 @@ const columns = [
     title: 'Full name',
     key: 'name',
     width: '20%',
-    sorter: (a: NUser.IUser, b: NUser.IUser) => a.firstName.localeCompare(b.firstName)
-    ,
+    sorter: (a: NUser.IUser, b: NUser.IUser) => a.firstName.localeCompare(b.firstName),
   },
   {
     title: 'Phone Number',
@@ -41,7 +40,10 @@ const columns = [
     ],
     onFilter: (value: boolean, record: NUser.IUser) => record.isActive === value
   },
-
+  {
+    title: 'Role',
+    key: 'role',
+  },
   {
     title: 'Action',
     key: 'action',
@@ -63,7 +65,7 @@ export default defineComponent({
     const store = useMenu();
     store.onSelectedKeys(["users"]);
 
-    const { data, run, loading, current, pageSize } = usePagination(queryData, {
+    const { data, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
       pagination: {
         currentKey: "page",
         pageSizeKey: "results",
@@ -102,6 +104,7 @@ export default defineComponent({
             message: 'Notification',
             type: 'success'
           });
+          refreshAsync()
         }
       }).catch((error) => {
         console.error(error)
@@ -136,6 +139,8 @@ export default defineComponent({
         <template #bodyCell="{ column, index, text }">
           <template v-if="column.key === 'index'">{{ index + 1 }}</template>
           <template v-if="column.key === 'name'">{{ `${text?.firstName} ${text?.lastName}` }}</template>
+          <template v-if="column.key === 'role'">{{ `${text.role?.name || ''}` }}</template>
+
           <template v-if="column.dataIndex === 'isActive'">
             <div v-if="text" className="status-container active">
               <!-- <span className="dot"></span> -->
@@ -144,7 +149,6 @@ export default defineComponent({
             <div v-if="!text" class="status-container inactive">
               <p className="status-text inactive">Inactive</p>
             </div>
-
           </template>
           <template v-if="column.key === 'action'">
             <div class="dropdown-wrap">

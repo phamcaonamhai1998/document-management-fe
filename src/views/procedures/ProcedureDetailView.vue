@@ -6,10 +6,13 @@ import { notification, type FormInstance } from 'ant-design-vue';
 import axios from 'axios';
 import type { NProcedure } from '../../interface/procedure';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons-vue';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
+import { SERVER_RESOURCE, TOKEN_KEY } from '../../constants/index.constant';
 import type { NUser } from '../../interface/user';
 import { useRoute } from 'vue-router';
 import type { NDepartment } from '../../interface/department';
+import type { NProcedureStep } from '../../interface/procedure-step';
+import router from '../../router';
+import jwt_decode from 'jwt-decode';
 
 
 export default defineComponent({
@@ -18,12 +21,17 @@ export default defineComponent({
         PlusOutlined
     },
     setup() {
-
+        const store = useMenu();
+        store.onSelectedKeys(["procedures"]);
         const departments = ref<NDepartment.IDepartment[]>([]);
         const approvers = ref<NUser.IUser[]>([]);
         const formRef = ref<FormInstance>();
         const route = useRoute();
         const id: string = route.params.id as string;
+        const token = localStorage.getItem(TOKEN_KEY)
+        const decodeToken: any = token && jwt_decode(token);
+        const orgClaim = decodeToken?.org ? JSON.parse(decodeToken?.org) : null;
+        const depClaim = decodeToken?.department ? JSON.parse(decodeToken?.department) : null;
 
         onMounted(() => {
             if (id) {
@@ -38,7 +46,12 @@ export default defineComponent({
                 if (res.data) {
                     formState.name = res.data.name;
                     formState.departmentId = res.data.departmentId;
-                    formState.procedureSteps = res.data.procedureSteps || [];
+                    if (res.data.procedureSteps.length) {
+                        formState.procedureSteps = res.data.procedureSteps.sort(function (a: NProcedureStep.IProcedureStep, b: NProcedureStep.IProcedureStep) { return a.priority - b.priority });
+                    }
+                    else {
+                        formState.procedureSteps = [];
+                    }
                 }
             })
                 .catch((error) => {
@@ -51,7 +64,7 @@ export default defineComponent({
         }
 
         onMounted(() => {
-            axios.get(`${SERVER_RESOURCE}/user`)
+            axios.get(`${SERVER_RESOURCE}/user/can-assigns`)
                 .then((res) => {
                     if (res.data) {
                         approvers.value = res.data;
@@ -59,39 +72,39 @@ export default defineComponent({
                 }).catch((err) => {
                     console.error(err);
                     notification.error({
-                        message: 'Can not get approvers',
+                        message: 'Can not get users',
                         type: 'error'
                     });
                 })
+            if (!depClaim) {
+                axios.get(`${SERVER_RESOURCE}/department`)
+                    .then((res) => {
+                        if (res.data) {
+                            departments.value = res.data;
+                        }
+                    }).catch((err) => {
+                        console.error(err);
+                        notification.error({
+                            message: 'Can not get departments',
+                            type: 'error'
+                        });
+                    })
+            }
 
-            axios.get(`${SERVER_RESOURCE}/department`)
-                .then((res) => {
-                    if (res.data) {
-                        departments.value = res.data;
-                    }
-                }).catch((err) => {
-                    console.error(err);
-                    notification.error({
-                        message: 'Can not get departments',
-                        type: 'error'
-                    });
-                })
         })
-
-        const store = useMenu();
-        store.onSelectedKeys(["procedures"]);
 
         const formState = reactive<NProcedure.FormStateProcedureDto>({
             name: '',
             departmentId: null,
             procedureSteps: [],
+            // isActive: false,
         });
 
         const filterOption = (input: string, option: any) => {
             return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0;
         };
 
-        const removeStep = (item: NProcedure.ProcedureSteps) => {
+        const removeStep = (item: NProcedureStep.ICreateProcedureStep) => {
             let index = formState.procedureSteps.indexOf(item);
             if (index !== -1) {
                 formState.procedureSteps.splice(index, 1);
@@ -100,11 +113,10 @@ export default defineComponent({
 
         // add first step 
         onMounted(() => {
-            formState.procedureSteps.push({
-                assignId: null || '',
-                description: undefined || '',
-                id: Date.now(),
-            });
+            if (!id) {
+                addStep();
+            }
+
         })
 
         const addStep = () => {
@@ -117,9 +129,12 @@ export default defineComponent({
 
         const onCreate = async () => {
             try {
-                const values = await formRef.value?.validateFields();
+                const values = await formRef.value?.validateFields() as NProcedure.ICreateProcedureRequest;
                 if (values) {
-                    createProc(values as NProcedure.ICreateProcedureRequest);
+                    if (depClaim?.Id) {
+                        values.departmentId = depClaim.Id
+                    }
+                    createProc(values);
                 }
             } catch (errorInfo) {
                 console.log('Failed:', errorInfo);
@@ -134,6 +149,7 @@ export default defineComponent({
                             message: 'Create successfully',
                             type: 'success'
                         });
+                        router.push('/procedures')
                     }
                 })
                 .catch((error) => {
@@ -165,18 +181,19 @@ export default defineComponent({
                             type: 'success'
                         });
                     }
+                    router.push('/procedures')
                 })
                 .catch((error) => {
                     notification.error({
                         message: 'An error has occurred',
                         type: 'error'
                     });
-                    console.log(error);
                 });
         }
 
 
         return {
+            depClaim,
             id,
             approvers,
             formRef,
@@ -215,20 +232,26 @@ export default defineComponent({
             <a-form ref="formRef" layout="vertical" name="dynamic_form_nest_item" :model="formState">
                 <h1 class="title-detail">Procedure Details</h1>
 
+                <!-- <a-form-item label="Status:" name="isActive">
+                    <a-switch v-model:checked="formState.isActive" />
+                </a-form-item> -->
+
                 <a-form-item label="Name:" name="name"
                     :rules="[{ required: true, message: 'Please input procedure name' }]">
                     <a-input placeholder="Input procedure name" v-model:value="formState.name" />
                 </a-form-item>
 
-                <a-form-item label="Department:" name="departmentId"
-                    :rules="[{ required: true, message: 'Please select procedure', trigger: 'change' }]">
-                    <a-select :allowClear="true" v-model:value="formState.departmentId" show-search
-                        placeholder="Select department" style="width: 400px" :filter-option="filterOption">
-                        <a-select-option v-for="dep in departments" :key="dep.id" :value="dep.id">
-                            {{ dep.name }}
-                        </a-select-option>
-                    </a-select>
-                </a-form-item>
+                <template v-if="!depClaim">
+                    <a-form-item label="Department:" name="departmentId"
+                        :rules="[{ required: true, message: 'Please select procedure', trigger: 'change' }]">
+                        <a-select :allowClear="true" v-model:value="formState.departmentId" show-search
+                            placeholder="Select department" style="width: 400px" :filter-option="filterOption">
+                            <a-select-option v-for="dep in departments" :key="dep.id" :value="dep.id">
+                                {{ dep.name }}
+                            </a-select-option>
+                        </a-select>
+                    </a-form-item>
+                </template>
 
                 <div className="btn-add-container">
                     <a-button className="add-step-btn" @click="addStep">
@@ -277,7 +300,7 @@ export default defineComponent({
 
         </div>
     </div>
-</template>``
+</template>
 
 <style lang="scss">
 .step-procedure-detail-container {

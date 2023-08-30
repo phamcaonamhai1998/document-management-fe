@@ -1,7 +1,9 @@
 export declare namespace NDocument {
   export interface IDocument {
+    id: string
     title: string
     content: string
+    isActive: boolean
   }
 
   export interface FormStateDocumentDto {

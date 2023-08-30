@@ -1,16 +1,19 @@
 <script lang="ts">
-import type { MenuProps, TableProps } from 'ant-design-vue';
+import { notification, type MenuProps, type TableProps } from 'ant-design-vue';
 import { useMenu } from '../../stores/use-menu';
 import { usePagination } from 'vue-request';
 import type { IApi } from '../../interface/api-param';
 import axios from 'axios';
 import { computed } from 'vue';
 import CreateButton from '../../components/create-button/CreateButton.vue'
+import { SERVER_RESOURCE } from '../../constants/index.constant';
+import type { NSignature } from '../../interface/signature';
+import router from '../../router';
 
 
 const columns = [
   {
-    title: '#',
+    title: 'Number',
     key: 'index'
   },
   {
@@ -28,7 +31,7 @@ const columns = [
     dataIndex: 'privateKey',
   },
   {
-    title: '',
+    title: 'Action',
     key: 'action',
     fixed: 'right',
     width: 100,
@@ -36,7 +39,7 @@ const columns = [
 ];
 
 const queryData = (params: IApi.APIParams) => {
-  return axios.get<IApi.APIResult>('https://randomuser.me/api?noinfo', { params });
+  return axios.get<NSignature.ISignature[]>(`${SERVER_RESOURCE}/signature`, { params });
 };
 
 export default {
@@ -47,7 +50,7 @@ export default {
     const store = useMenu();
     store.onSelectedKeys(['signatures'])
 
-    const { data: dataSource, run, loading, current, pageSize, } = usePagination(queryData, {
+    const { data: dataSource, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
       // formatResult: res => res.data.results,
       pagination: {
         currentKey: "page",
@@ -57,7 +60,7 @@ export default {
 
 
     const pagination = computed(() => ({
-      total: 200,
+      total: dataSource.value?.data.length,
       current: current.value,
       pageSize: pageSize.value,
     }));
@@ -65,7 +68,6 @@ export default {
     const handleTableChange: TableProps["onChange"] = (
       // pagination: { pageSize: number; current: number },
       filters: any, sorter: any) => {
-      // console.log("filters", filters);
       run({
         results: pageSize,
         page: filters.current,
@@ -79,10 +81,31 @@ export default {
       console.log('click left button', e);
     };
 
-    const handleMenuClick = (id: string, event: any) => {
-      console.log('click', id);
-      console.log("Event Key", event.key);
+    const handleMenuClick = (signature: NSignature.ISignature, event: any) => {
+      if (event.key === 'edit') {
+        router.push(`signature/edit/${signature.id}`)
+      } else if (event.key === 'delete') {
+        remove(signature.id)
+      }
     };
+
+    const remove = async (id: string) => {
+      await axios.delete(`${SERVER_RESOURCE}/role/${id}`).then((res) => {
+        if (res) {
+          notification.success({
+            message: 'Delete successfully',
+            type: 'success'
+          });
+          refreshAsync();
+        }
+      }).catch((error) => {
+        console.error(error);
+        notification.error({
+          message: 'An error has occurred',
+          type: 'error'
+        });
+      });;
+    }
 
 
     return {
@@ -104,7 +127,7 @@ export default {
   </div>
   <div className="overflow-hidden">
     <div className="list-content table-wrapper">
-      <a-table :columns="columns" :data-source="dataSource?.data.results" :pagination="pagination" :loading="loading"
+      <a-table :columns="columns" :data-source="dataSource?.data" :pagination="pagination" :loading="loading"
         :scroll="{ x: 576 }" @change="handleTableChange">
         <template #bodyCell="{ column, index, text }">
           <template v-if="column.key === 'index'">{{ index + 1 }}</template>

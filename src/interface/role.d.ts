@@ -1,4 +1,4 @@
-import { Permission } from './permission'
+import { NPermission } from './permission'
 
 export declare namespace NRole {
   interface IRole {
@@ -10,6 +10,11 @@ export declare namespace NRole {
 
   interface ICreateRole {
     name: string
-    permissions: Permission.ICreatePermission[]
+    permissions: NPermission.ICreatePermission[]
+  }
+
+  interface IUpdateRole {
+    name: string
+    permissions: NPermission.ICreatePermission[]
   }
 }

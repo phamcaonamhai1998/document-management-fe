@@ -10,15 +10,15 @@ import { UserOutlined, LogoutOutlined } from '@ant-design/icons-vue';
 
 export default defineComponent({
     components: {
-        UserOutlined,
+        // UserOutlined,
         LogoutOutlined
     },
     setup() {
         //store
         const route = useRoute();
-        const title = route.name ? route?.name?.toString().charAt(0).toUpperCase() + route.name.toString().slice(1).toString() : "Dashboard";
+        const title = route.name ? route?.name?.toString().charAt(0).toUpperCase() + route?.name?.toString().slice(1).toString() : "Dashboard";
         const token = localStorage.getItem(TOKEN_KEY)
-        const decodeToken: any = token && jwt_decode(token);
+        const claims: any = token && jwt_decode(token);
 
         const titleStore = useTitle();
         if (!titleStore.title) {
@@ -36,7 +36,7 @@ export default defineComponent({
         return {
             ...storeToRefs(titleStore),
             handleDropDownClick,
-            decodeToken
+            claims
         };
     },
 });
@@ -50,28 +50,31 @@ export default defineComponent({
         <div class="title-container">
             <h1 class="title-text">{{ title }}</h1>
         </div>
-        <div class="avatar-container">
-            <a-dropdown-button :open="true" class="avatar-button">
-                <template #overlay>
-                    <a-menu @click="handleDropDownClick">
-                        <a-menu-item key="profile">
+        <div className="flex items-center">
+            <p className="email-text">{{ claims?.email || '' }},</p>
+            <div class="avatar-container">
+                <a-dropdown-button :open="true" class="avatar-button">
+                    <template #overlay>
+                        <a-menu @click="handleDropDownClick">
+                            <!-- <a-menu-item key="profile">
                             <UserOutlined />
-                            <span class="ml-3">{{ `${decodeToken?.firstName} ${decodeToken?.lastName}` }}</span>
-                        </a-menu-item>
-                        <a-menu-item key="logout">
-                            <logout-outlined />
-                            <span class="ml-3">Logout</span>
-
-                        </a-menu-item>
-                    </a-menu>
-                </template>
-                <template #icon>
-                    <a-avatar size="large" style="background-color: #f56a00">{{
-                        (decodeToken?.firstName).toUpperCase().charAt(0)
-                    }}</a-avatar>
-                </template>
-            </a-dropdown-button>
+                            <span class="ml-3">{{ `${decodeToken?.firstName || ''} ${decodeToken?.lastName || ''}` }}</span>
+                        </a-menu-item> -->
+                            <a-menu-item key="logout">
+                                <logout-outlined />
+                                <span class="ml-3">Logout</span>
+                            </a-menu-item>
+                        </a-menu>
+                    </template>
+                    <template #icon>
+                        <a-avatar size="large" style="background-color: #f56a00">{{
+                            (claims?.firstName || 'User').toUpperCase().charAt(0)
+                        }}</a-avatar>
+                    </template>
+                </a-dropdown-button>
+            </div>
         </div>
+
     </div>
 </template>
 <style lang="scss">
@@ -119,8 +122,14 @@ export default defineComponent({
     }
 
     .avatar-container {
+        margin-left: 12px;
+
         .avatar-button {
             border: none;
+
+            .ant-btn:first-child {
+                display: none;
+            }
 
             .ant-btn {
                 width: 50px;
@@ -128,6 +137,12 @@ export default defineComponent({
                 border: none;
             }
         }
+    }
+
+    .email-text {
+        font-size: 18px !important;
+        font-weight: 700;
+        line-height: 24px;
     }
 }
 </style>

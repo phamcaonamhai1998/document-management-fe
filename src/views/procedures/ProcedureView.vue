@@ -4,7 +4,7 @@ import { useMenu } from '../../stores/use-menu';
 import { usePagination } from 'vue-request';
 import type { IApi } from '../../interface/api-param';
 import axios from 'axios';
-import { computed, onMounted } from 'vue';
+import { computed } from 'vue';
 import CreateButton from '../../components/create-button/CreateButton.vue'
 import { SERVER_RESOURCE } from '../../constants/index.constant';
 import type { NProcedure } from '../../interface/procedure';
@@ -20,8 +20,8 @@ const columns = [
     {
         title: 'Name',
         dataIndex: 'name',
-        sorter: true,
         width: '90%',
+        sorter: (a: NProcedure.IProcedure, b: NProcedure.IProcedure) => a.name.localeCompare(b.name),
     },
     {
         title: 'Action',
@@ -43,7 +43,7 @@ export default {
         const store = useMenu();
         store.onSelectedKeys(['procedures'])
 
-        const { data: dataSource, run, loading, current, pageSize } = usePagination(queryData, {
+        const { data: dataSource, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
             // formatResult: res => res.data.results,
             pagination: {
                 currentKey: "page",
@@ -86,6 +86,7 @@ export default {
                         message: 'Delete successfully',
                         type: 'success'
                     });
+                    refreshAsync();
                 }
             }).catch((error) => {
                 notification.error({

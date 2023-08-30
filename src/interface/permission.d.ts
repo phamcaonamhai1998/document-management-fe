@@ -1,4 +1,4 @@
-export declare namespace Permission {
+export declare namespace NPermission {
   interface IPermission {
     id: string
     code: string
@@ -7,6 +7,7 @@ export declare namespace Permission {
   }
 
   interface ICreatePermission {
+    name: string
     code: string
     groupCode: string
   }

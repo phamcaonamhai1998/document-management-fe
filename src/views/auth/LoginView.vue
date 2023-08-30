@@ -34,14 +34,26 @@ export default {
                         localStorage.setItem(TOKEN_KEY, res.data.accessToken);
                         router.push('/')
                     }
-                    else {
-                        return;
-                    }
                 })
                 .catch((error) => {
-                    console.error(error);
+                    let titleError: string = '';
+                    if (error.response?.data?.message) {
+                        switch (error.response?.data?.message) {
+                            case 'user_is_not_found':
+                                titleError = 'User is not exist';
+                                break;
+                            case 'password_is_incorrect':
+                                titleError = 'Password is incorrect'
+                                break;
+                            default:
+                                titleError = 'An error has occurred';
+                        }
+                    }
+                    else {
+                        titleError = 'An error has occurred';
+                    }
                     notification.error({
-                        message: 'An error has occurred',
+                        message: titleError,
                         type: 'error'
                     });
                 });

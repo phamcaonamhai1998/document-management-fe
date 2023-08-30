@@ -3,59 +3,91 @@ import { usePagination } from 'vue-request';
 import { useMenu } from '../../stores/use-menu';
 import axios from 'axios';
 import type { IApi } from '../../interface/api-param';
-import { computed } from 'vue';
-import type { MenuProps, TableProps } from 'ant-design-vue';
+import { computed, ref } from 'vue';
+import { notification, type MenuProps, type TableProps } from 'ant-design-vue';
 import CreateButton from '../../components/create-button/CreateButton.vue'
 import type { NDocument } from '../../interface/document';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
-
-const columns = [
-  {
-    title: '#',
-    key: 'index',
-    width: '10%',
-  },
-  {
-    title: 'Name',
-    dataIndex: 'name',
-    sorter: true,
-    width: '20%',
-  },
-  {
-    title: 'Gender',
-    dataIndex: 'gender',
-    filters: [
-      { text: 'Male', value: 'male' },
-      { text: 'Female', value: 'female' },
-    ],
-    width: '20%',
-  },
-  {
-    title: 'Email',
-    dataIndex: 'email',
-  },
-  {
-    title: '',
-    key: 'action',
-    fixed: 'right',
-    width: 100,
-  },
-];
-
-const queryData = (params: IApi.APIParams) => {
-  return axios.get<NDocument.IDocument[]>(`${SERVER_RESOURCE}/document`, { params });
-};
+import { SERVER_RESOURCE, TOKEN_KEY, ADMIN_ID } from '../../constants/index.constant';
+import router from '../../router';
+import { FolderOpenOutlined, SearchOutlined } from '@ant-design/icons-vue';
+import jwt_decode from 'jwt-decode';
+import { PERMISSIONS } from '../../constants/permission';
 
 
 export default {
   components: {
     CreateButton,
+    SearchOutlined,
+    FolderOpenOutlined
   },
   setup() {
+    const token = localStorage.getItem(TOKEN_KEY)
+    const decodeToken: any = token && jwt_decode(token);
+    let userRights: string[] = decodeToken?.rights || [];
     const store = useMenu();
-    store.onSelectedKeys(['documents'])
+    store.onSelectedKeys(['documents']);
+    const activeKey = ref<string>();
+    const endpointDocument = ref<string>('');
+    const filterText = ref<string>('');
+    const columns = ref<{ title: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function }[]>([
+      {
+        title: 'Number',
+        key: 'index',
+        width: '10%',
+      },
 
-    const { data: dataSource, run, loading, current, pageSize, } = usePagination(queryData, {
+      {
+        title: 'Title',
+        dataIndex: 'title',
+        width: '20%',
+        sorter: (a: NDocument.IDocument, b: NDocument.IDocument) => a.title.localeCompare(b.title),
+
+      },
+
+      {
+        title: 'Description',
+        dataIndex: 'description',
+      },
+
+      {
+        title: 'Organization name',
+        dataIndex: 'orgName',
+      },
+
+      {
+        title: 'Procedure Name',
+        dataIndex: 'procedureName',
+      },
+
+      {
+        title: 'Status',
+        dataIndex: 'isActive',
+        filters: [
+          { text: 'Active', value: true },
+          { text: 'Inactive', value: false },
+        ],
+        onFilter: (value: boolean, record: NDocument.IDocument) => record.isActive === value
+      },
+
+      {
+        title: 'Document',
+        dataIndex: 'path',
+      },
+
+      {
+        title: 'Action',
+        key: 'action',
+        fixed: 'right',
+        width: 100,
+      },
+    ]);
+
+    const queryData = (params: IApi.APIParams) => {
+      params.filter = filterText.value;
+      return axios.get<NDocument.IDocument[]>(`${SERVER_RESOURCE}/document/${endpointDocument.value}`, { params });
+    };
+
+    const { data: dataSource, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
       // formatResult: res => res.data.results,
       pagination: {
         currentKey: "page",
@@ -64,6 +96,7 @@ export default {
     });
 
     const pagination = computed(() => ({
+      data: dataSource || [],
       total: dataSource.value?.data.length,
       current: current.value,
       pageSize: pageSize.value,
@@ -81,47 +114,194 @@ export default {
       });
     };
 
-    const handleMenuClick = (id: string, event: any) => {
-      console.log('click', id);
-      console.log("Event Key", event.key);
+    const handleMenuClick = (item: NDocument.IDocument, event: any) => {
+      switch (event.key) {
+        case 'edit':
+          router.push(`documents/edit/${item.id}`);
+          break;
+
+        case 'delete':
+          remove(item.id);
+          break;
+
+        case 'approve':
+          approveDoc(item.id);
+          break;
+
+        case 'reject':
+          rejectDoc(item.id);
+          break;
+
+        default:
+          break;
+      }
+
+    };
+
+    const approveDoc = async (id: string) => {
+      axios.put(`${SERVER_RESOURCE}/document/approve/${id}`,)
+        .then((res) => {
+          if (res) {
+            notification.success({
+              message: 'Update successfully',
+              type: 'success'
+            });
+            router.push('/departments')
+          }
+        })
+        .catch((error) => {
+          notification.error({
+            message: 'An error has occurred',
+            type: 'error'
+          });
+          console.error(error);
+        });
+    }
+
+    const rejectDoc = async (id: string) => {
+      const rejectDocDto = {
+        reason: ''
+      }
+
+      await axios.put(`${SERVER_RESOURCE}/document/reject/${id}`, rejectDocDto)
+        .then((res) => {
+          if (res) {
+            notification.success({
+              message: 'Reject successfully',
+              type: 'success'
+            });
+            refreshAsync();
+          }
+        })
+        .catch((error) => {
+          notification.error({
+            message: 'An error has occurred',
+            type: 'error'
+          });
+          console.error(error);
+        });
+    }
+
+    const remove = async (id: string) => {
+      await axios.delete(`${SERVER_RESOURCE}/document/${id}`).then((res) => {
+        if (res) {
+          notification.success({
+            message: 'Delete successfully',
+            type: 'success'
+          });
+          refreshAsync();
+        }
+      }).catch((error) => {
+        notification.error({
+          message: `Error`,
+          type: 'error'
+        });
+        console.log(error);
+      });;
+    }
+
+    const onChangeTab = (key: string) => {
+      endpointDocument.value = key;
+      refreshAsync();
+    }
+
+    const onSearch = (searchValue: string) => {
+      filterText.value = searchValue;
+      refreshAsync();
     };
 
 
     return {
+      decodeToken,
+      activeKey,
       dataSource,
       pagination,
       loading,
       columns,
+      ADMIN_ID,
+      PERMISSIONS,
+      userRights,
+      onChangeTab,
       handleTableChange,
       handleMenuClick,
+      onSearch,
     };
   }
 }
 </script>
 
 <template>
-  <div className="list-header">
+  <div v-if="decodeToken?.id !== ADMIN_ID && (userRights || []).includes(PERMISSIONS.DOCUMENT_CREATE)"
+    className="list-header">
     <CreateButton createText="Create Document" url="documents/create"></CreateButton>
   </div>
 
   <div className="overflow-hidden">
     <div className="list-content table-wrapper">
-      <a-table :columns="columns" :data-source="dataSource?.data" :pagination="pagination" :loading="loading"
+      <a-tabs v-model:activeKey="activeKey" :onChange="onChangeTab">
+        <a-tab-pane key="" tab="Document"></a-tab-pane>
+        <a-tab-pane key="assigned" tab="Assigned document"></a-tab-pane>
+        <a-tab-pane key="rejected" tab="Rejected document"></a-tab-pane>
+      </a-tabs>
+
+      <a-row className="mt-2 mb-6">
+        <a-col :span="6">
+          <a-input-search @search="onSearch" allow-clear>
+            <template #prefix>
+              <SearchOutlined />
+            </template>
+          </a-input-search>
+        </a-col>
+      </a-row>
+
+
+      <a-table :columns="columns" :data-source="dataSource?.data || []" :pagination="pagination" :loading="loading"
         :scroll="{ x: 576 }" @change="handleTableChange">
         <template #bodyCell="{ column, index, text }">
-          <template v-if="column.dataIndex === 'name'">{{ text.first }} {{ text.last }}</template>
           <template v-if="column.key === 'index'">{{ index + 1 }}</template>
+          <template v-if="column.dataIndex === 'path'">
+            <a :href="text" target="_blank" className="document-content w-fit flex items-center">
+              <folder-open-outlined />
+              <span className="ml-2">View</span>
+            </a>
+          </template>
+          <template v-if="column.dataIndex === 'isActive'">
+            <div v-if="text" className="status-container active">
+              <!-- <span className="dot"></span> -->
+              <p className="status-text active">Approved</p>
+            </div>
+            <div v-if="!text" class="status-container inactive">
+              <p className="status-text inactive">Processing</p>
+            </div>
+          </template>
+
+
+
           <template v-if="column.key === 'action'">
             <div class="dropdown-wrap">
-              <a-dropdown-button>
+              <a-dropdown-button :open="true">
                 <template #overlay>
-                  <a-menu @click="(event: MenuProps) => handleMenuClick(text.id.value, event)">
-                    <a-menu-item key="edit">
-                      Edit
+                  <a-menu @click="(event: MenuProps) => handleMenuClick(text, event)">
+                    <template v-if="!activeKey">
+                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_UPDATE)" key="edit">
+                        Edit
+                      </a-menu-item>
+                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_DELETE)" key="delete">
+                        Delete
+                      </a-menu-item>
+                    </template>
+
+                    <!-- <template v-if="activeKey === 'assigned'"> -->
+                    <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="approve">
+                      Approve
                     </a-menu-item>
-                    <a-menu-item key="delete">
-                      Delete
+                    <!-- </template> -->
+
+                    <!-- <template v-if="activeKey === 'assigned'"> -->
+                    <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="reject">
+                      Reject
                     </a-menu-item>
+                    <!-- </template> -->
                   </a-menu>
                 </template>
                 <template #icon>
@@ -136,3 +316,31 @@ export default {
     </div>
   </div>
 </template>
+
+<style lang="scss">
+.ant-input-search {
+  border: 1px solid #d0d5dd;
+  color: #a7adb2;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 26px;
+
+  .ant-input-affix-wrapper:hover {
+    border: unset;
+  }
+
+  .ant-input-group {}
+
+  .ant-input-search-button {
+    display: none;
+  }
+}
+
+
+.document-content {
+  :hover {
+    color: unset;
+    background-color: unset;
+  }
+}
+</style>

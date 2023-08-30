@@ -24,7 +24,7 @@ export default defineComponent({
             name: '',
             email: '',
             phone: '',
-            organizationId: ''
+            // organizationId: ''
         });
 
 
@@ -150,7 +150,8 @@ export default defineComponent({
 <template>
     <div class="block-container">
         <div class="block-heading">
-            <span>Create Department</span>
+            <span v-if="!id">Create Department</span>
+            <span v-if="id">Update Department</span>
             <div className="header-actions">
                 <a-button type="primary">
                     <router-link :to="{ name: 'departments' }">
@@ -167,7 +168,7 @@ export default defineComponent({
                 <a-row :gutter="16">
                     <a-col class="gutter-row" :span="16">
                         <div class="gutter-box">
-                            <teamplate v-if="!id">
+                            <!-- <teamplate v-if="!id">
                                 <a-form-item label="Organization:" name="organizationId"
                                     :rules="[{ required: true, message: 'Please select organization', trigger: 'change' }]">
                                     <a-select :allowClear="true" v-model:value="formState.organizationId" show-search
@@ -179,7 +180,7 @@ export default defineComponent({
 
                                     </a-select>
                                 </a-form-item>
-                            </teamplate>
+                            </teamplate> -->
 
                             <a-form-item label="Department name:" name="name"
                                 :rules="[{ required: true, message: 'Please input organization name' }]">

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import MainView from '../views/MainView.vue'
-import DashboardView from '../views/DashboardView.vue'
+import DashboardView from '../views/dashboard/DashboardView.vue'
 import ProceduresView from '../views/procedures/ProcedureView.vue'
 import ProcedureDetailView from '../views/procedures/ProcedureDetailView.vue'
 import UsersView from '../views/users/UsersView.vue'
@@ -11,6 +11,7 @@ import SignaturesView from '../views/signatures/SignaturesView.vue'
 import SignatureDetailView from '../views/signatures/SignatureDetailView.vue'
 import LoginView from '../views/auth/LoginView.vue'
 import RolesView from '../views/roles/RolesView.vue'
+import RoleDetailView from '../views/roles/RoleDetailView.vue'
 import OrganizationsViewVue from '../views/organizations/OrganizationsView.vue'
 import OrganizationDetailViewVue from '../views/organizations/OrganizationDetailView.vue'
 import DepartmentsViewVue from '../views/departments/DepartmentsView.vue'
@@ -87,6 +88,16 @@ const router = createRouter({
           name: 'roles',
           component: RolesView
         },
+        {
+          path: '/roles/create',
+          name: 'Create Role Page',
+          component: RoleDetailView
+        },
+        {
+          path: '/roles/edit/:id',
+          name: 'Edit Role Page',
+          component: RoleDetailView
+        },
 
         // Users
         {
@@ -114,6 +125,11 @@ const router = createRouter({
         {
           path: '/documents/create',
           name: 'Create Document Page',
+          component: DocumentDetailView
+        },
+        {
+          path: '/documents/edit/:id',
+          name: 'Edit Document Page',
           component: DocumentDetailView
         },
 
@@ -144,6 +160,8 @@ router.beforeEach((to, from, next) => {
   const publicPages = ['/login']
   const authRequired = !publicPages.includes(to.path)
   const loggedIn = localStorage.getItem(TOKEN_KEY)
+  // const token = localStorage.getItem(TOKEN_KEY)
+  // const decodeToken: any = token && jwt_decode(token)
 
   if (authRequired && !loggedIn) {
     return next('/login')

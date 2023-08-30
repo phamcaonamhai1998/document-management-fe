@@ -52,6 +52,7 @@
   font-weight: 500;
   line-height: 24px;
   margin-left: 16px;
+  border-radius: 6px;
 
   &.ant-btn-sm {
     height: 24px;
@@ -202,4 +203,46 @@
   .ant-input {
     height: unset !important;
   }
+}
+
+.ant-tabs-nav {
+  .ant-tabs-tab {
+    padding: 10px 14px;
+    min-width: 120px;
+    justify-content: center;
+    // background: #f4f5f5;
+    color: #22313f;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 18px;
+    text-align: center;
+    padding: 12px 8px;
+    border: 1px solid #f4f5f5;
+    border-bottom: none;
+
+    + .ant-tabs-tab {
+      margin: 0 0 0 8px;
+    }
+
+    &.ant-tabs-tab-active {
+      background: #fff1d5;
+    }
+  }
+
+  &::before {
+    border: none;
+  }
+
+  .ant-tabs-ink-bar {
+    display: none;
+  }
+
+  .ant-tabs-tab.ant-tabs-tab-active {
+    background: #f1f1ff;
+  }
+}
+
+.ant-tabs-tab.ant-tabs-tab-active {
+  background: #f1f1ff;
 }

@@ -76,7 +76,7 @@ export default defineComponent({
                             message: 'Create successfully',
                             type: 'success'
                         });
-                        router.push('/organizations')
+                        router.push('/organizations');
                     }
                 })
                 .catch((error) => {
@@ -107,6 +107,8 @@ export default defineComponent({
                             message: 'Update successfully',
                             type: 'success'
                         });
+                        router.push('/organizations')
+
                     }
                 })
                 .catch((error) => {

@@ -21,8 +21,9 @@ const columns = [
     {
         title: 'Name',
         dataIndex: 'name',
-        sorter: true,
         width: '20%',
+        sorter: (a: NOrganization.IOrganization, b: NOrganization.IOrganization) => a.name.localeCompare(b.name),
+
     },
     {
         title: 'Phone Number',
@@ -54,7 +55,7 @@ export default defineComponent({
         const store = useMenu();
         store.onSelectedKeys(["organizations"]);
 
-        const { data: data, run, loading, current, pageSize, } = usePagination(queryData, {
+        const { data: data, run, loading, current, pageSize, refresh, refreshAsync } = usePagination(queryData, {
             pagination: {
                 currentKey: "page",
                 pageSizeKey: "results",
@@ -93,6 +94,7 @@ export default defineComponent({
                         message: 'Delete successfully',
                         type: 'success'
                     });
+                    refreshAsync();
                 }
             }).catch((error) => {
                 notification.error({

@@ -2,30 +2,30 @@
 <script lang="ts">
 import { notification, type MenuProps, type TableProps } from 'ant-design-vue';
 import { usePagination } from 'vue-request';
-import { computed, defineComponent, ref } from 'vue';
+import { computed, defineComponent, ref, watch } from 'vue';
 import axios from 'axios';
 import { useMenu } from '../../stores/use-menu';
 import type { IApi } from '../../interface/api-param';
-import CreateRoleDetail from './CreateRoleDetail.vue';
-import { PlusOutlined } from '@ant-design/icons-vue';
 import type { NRole } from '../../interface/role';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
+import { DEP_OWNER_ID, SERVER_RESOURCE } from '../../constants/index.constant';
 import router from '../../router';
+import CreateButton from '../../components/create-button/CreateButton.vue'
+
 
 const columns = [
     {
-        title: '#',
+        title: 'Number',
         key: 'index',
         width: '10%',
     },
     {
         title: 'Name',
         dataIndex: 'name',
-        sorter: true,
         width: '80%',
+        sorter: (a: NRole.IRole, b: NRole.IRole) => a.name.localeCompare(b.name),
     },
     {
-        title: '',
+        title: 'Action',
         key: 'action',
         fixed: 'right',
         width: '10%',
@@ -38,20 +38,24 @@ const queryData = (params: IApi.APIParams) => {
 
 export default defineComponent({
     components: {
-        CreateRoleDetail,
-        PlusOutlined,
+        CreateButton
     },
 
     setup() {
         const store = useMenu();
         store.onSelectedKeys(["roles"]);
         const visibleDrawer = ref<boolean>(false);
+        const roleId = ref<string>('');
 
-        const { data: dataSource, run, loading, current, pageSize, } = usePagination(queryData, {
+        const { data: dataSource, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
             pagination: {
                 currentKey: "page",
                 pageSizeKey: "results",
             },
+        });
+
+        watch(roleId, () => {
+
         });
 
         const pagination = computed(() => ({
@@ -73,11 +77,11 @@ export default defineComponent({
 
         const handleMenuClick = (role: NRole.IRole, event: any) => {
             if (event.key === 'edit') {
-                // router.push(`roles/edit/${role.id}`)
+                router.push(`roles/edit/${role.id}`)
             } else if (event.key === 'delete') {
                 remove(role.id)
-            }
-        };
+            };
+        }
 
         const remove = async (id: string) => {
             await axios.delete(`${SERVER_RESOURCE}/role/${id}`).then((res) => {
@@ -86,6 +90,7 @@ export default defineComponent({
                         message: 'Delete successfully',
                         type: 'success'
                     });
+                    refreshAsync();
                 }
             }).catch((error) => {
                 console.error(error);
@@ -105,7 +110,11 @@ export default defineComponent({
         }
 
 
+
+
         return {
+            DEP_OWNER_ID,
+            roleId,
             visibleDrawer,
             dataSource,
             pagination,
@@ -115,6 +124,8 @@ export default defineComponent({
             handleMenuClick,
             showDrawer,
             emitCloseDrawer,
+            refreshAsync,
+
         };
     },
 });
@@ -122,10 +133,7 @@ export default defineComponent({
 
 <template>
     <div className="list-header">
-        <a-button type="primary" @click="showDrawer">
-            <PlusOutlined />
-            <span>Create Role</span>
-        </a-button>
+        <CreateButton createText="Create Role" url="roles/create"></CreateButton>
     </div>
     <div className="overflow-hidden">
         <div className="list-content table-wrapper">
@@ -138,12 +146,14 @@ export default defineComponent({
                             <a-dropdown-button>
                                 <template #overlay>
                                     <a-menu @click="(event: MenuProps) => handleMenuClick(text, event)">
-                                        <a-menu-item key="edit">
-                                            Edit
-                                        </a-menu-item>
-                                        <a-menu-item key="delete">
-                                            Delete
-                                        </a-menu-item>
+                                        <template v-if="text?.id !== DEP_OWNER_ID">
+                                            <a-menu-item key="edit">
+                                                Edit
+                                            </a-menu-item>
+                                            <a-menu-item key="delete">
+                                                Delete
+                                            </a-menu-item>
+                                        </template>
                                     </a-menu>
                                 </template>
                                 <template #icon>
@@ -159,5 +169,6 @@ export default defineComponent({
     </div>
 
 
-    <CreateRoleDetail :visibleDrawer="visibleDrawer" :emitCloseDrawer="emitCloseDrawer" />
+    <!-- <CreateRoleDetail :visibleDrawer="visibleDrawer" :emitCloseDrawer="emitCloseDrawer" :roleId="roleId"
+        :refreshAsync="refreshAsync" /> -->
 </template>

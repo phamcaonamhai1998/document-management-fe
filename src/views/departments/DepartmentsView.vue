@@ -1,14 +1,16 @@
 <script lang="ts">
 import { notification, type MenuProps, type TableProps } from 'ant-design-vue';
 import { usePagination } from 'vue-request';
-import { computed, defineComponent, onMounted, ref } from 'vue';
+import { computed, defineComponent } from 'vue';
 import axios from 'axios';
 import { useMenu } from '../../stores/use-menu';
 import type { IApi } from '../../interface/api-param';
 import CreateButton from '../../components/create-button/CreateButton.vue';
 import router from '../../router';
 import type { NDepartment } from '../../interface/department';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
+import { ADMIN_ID, SERVER_RESOURCE, TOKEN_KEY } from '../../constants/index.constant';
+import jwt_decode from 'jwt-decode';
+
 
 
 
@@ -21,8 +23,8 @@ const columns = [
     {
         title: 'Name',
         dataIndex: 'name',
-        sorter: true,
         width: '20%',
+        sorter: (a: NDepartment.IDepartment, b: NDepartment.IDepartment) => a.name.localeCompare(b.name),
     },
     {
         title: 'Phone Number',
@@ -53,8 +55,11 @@ export default defineComponent({
     setup() {
         const store = useMenu();
         store.onSelectedKeys(["departments"]);
+        const token = localStorage.getItem(TOKEN_KEY)
+        const decodeToken: any = token && jwt_decode(token);
+        const userRights: string[] = decodeToken?.rights || [];
 
-        const { data: data, run, loading, current, pageSize, } = usePagination(queryData, {
+        const { data: data, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
             pagination: {
                 currentKey: "page",
                 pageSizeKey: "results",
@@ -93,6 +98,7 @@ export default defineComponent({
                         message: 'Delete successfully',
                         type: 'success'
                     });
+                    refreshAsync();
                 }
             }).catch((error) => {
                 console.error(error);
@@ -104,6 +110,8 @@ export default defineComponent({
         }
 
         return {
+            decodeToken,
+            ADMIN_ID,
             data,
             pagination,
             loading,
@@ -116,7 +124,7 @@ export default defineComponent({
 </script>
 
 <template>
-    <div className="list-header">
+    <div v-if="decodeToken.id !== ADMIN_ID" className="list-header">
         <CreateButton createText="Create Department" url="departments/create"></CreateButton>
     </div>
     <div className="overflow-hidden">
@@ -130,7 +138,7 @@ export default defineComponent({
                             <a-dropdown-button>
                                 <template #overlay>
                                     <a-menu @click="(event: MenuProps) => handleMenuClick(text, event)">
-                                        <a-menu-item key="edit">
+                                        <a-menu-item v-if="decodeToken.id !== ADMIN_ID" key="edit">
                                             Edit
                                         </a-menu-item>
                                         <a-menu-item key="delete">

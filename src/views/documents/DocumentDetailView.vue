@@ -6,9 +6,12 @@ import { notification, type FormInstance, type UploadProps, message, type Upload
 import { UploadOutlined } from '@ant-design/icons-vue';
 import type { RcFile } from 'ant-design-vue/lib/vc-upload/interface';
 import axios from 'axios';
-import { SERVER_RESOURCE } from '../../constants/index.constant';
+import { SERVER_RESOURCE, TOKEN_KEY } from '../../constants/index.constant';
 import type { NProcedure } from '../../interface/procedure';
 import type { NDocument } from '../../interface/document';
+import jwt_decode from "jwt-decode";
+import { useRoute } from 'vue-router';
+import router from '../../router';
 
 export default defineComponent({
     components: {
@@ -16,13 +19,19 @@ export default defineComponent({
     },
     setup() {
 
+        const route = useRoute();
+        const id: string = route.params.id as string;
+
         const fileList = ref<UploadProps['fileList']>([]);
         const approveId = ref<string | undefined>(undefined);
         const procedures = ref<NProcedure.IProcedure[]>([]);
-        // const driveDocId = ref<string>('')
+
+        const token = localStorage.getItem(TOKEN_KEY);
+        const decodeToken: any = token && jwt_decode(token);
+        const urlAction = `${SERVER_RESOURCE}/document/upload/${decodeToken?.id}`
 
         onMounted(() => {
-            axios.get(`${SERVER_RESOURCE}/procedure`)
+            axios.get(`${SERVER_RESOURCE}/procedure/available`)
                 .then((res) => {
                     if (res.data) {
                         procedures.value = res.data;
@@ -47,6 +56,32 @@ export default defineComponent({
             driveDocId: null
         });
 
+        onMounted(() => {
+            if (id) {
+                getById(id);
+            }
+        })
+
+        const getById = async (id: string) => {
+            await axios.get(
+                `${SERVER_RESOURCE}/document/${id}`
+            ).then((res) => {
+                if (res.data) {
+                    formState.procedureId = res.data.procedureId;
+                    formState.title = res.data.title;
+                    formState.description = res.data.description;
+                    formState.driveDocId = res.data.driveDocId;
+                }
+            })
+                .catch((error) => {
+                    notification.error({
+                        message: `An error has occurred`,
+                        type: 'error'
+                    });
+                    console.log(error);
+                });
+        }
+
 
         const filterOption = (input: string, option: any) => {
             return option.value.toLowerCase().indexOf(input.toLowerCase()) >= 0;
@@ -70,7 +105,6 @@ export default defineComponent({
         };
 
         const handleChange = ({ file }: UploadChangeParam) => {
-            console.log("File", file)
             if (file.status === 'done' && file?.response) {
                 // console.log("File", file)
                 // driveDocId.value = file?.response;
@@ -81,7 +115,6 @@ export default defineComponent({
         const onCreate = async () => {
             try {
                 const values = await formRef.value?.validateFields();
-                console.log("values", values)
                 if (values) {
                     createDocument(values as NDocument.ICreateDocumentRequest);
                 }
@@ -99,6 +132,7 @@ export default defineComponent({
                             message: 'Create successfully',
                             type: 'success'
                         });
+                        router.push('/documents')
                     }
                 })
                 .catch((error) => {
@@ -113,6 +147,7 @@ export default defineComponent({
 
 
         return {
+            urlAction,
             formState,
             formRef,
             approveId,
@@ -148,8 +183,8 @@ export default defineComponent({
             <a-form ref="formRef" :model="formState" layout="vertical" name="dynamic_rule">
                 <a-form-item label="Document:" name="driveDocId"
                     :rules="[{ required: true, message: 'Please upload file' }]">
-                    <a-upload action="https://localhost:7138/document/upload" :before-upload="beforeUpload"
-                        v-model:file-list="fileList" :max-count="1" @change="handleChange">
+                    <a-upload :action="urlAction" :before-upload="beforeUpload" , v-model:file-list="fileList"
+                        :max-count="1" @change="handleChange">
                         <a-button type="primary">
                             <UploadOutlined />
                             Upload

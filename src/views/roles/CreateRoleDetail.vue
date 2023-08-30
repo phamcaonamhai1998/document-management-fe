@@ -1,16 +1,47 @@
 <script lang="ts">
-import { defineComponent, reactive, ref, watch } from 'vue';
+import { defineComponent, onMounted, reactive, ref, watch } from 'vue';
 import { notification, type FormInstance, type TreeProps } from 'ant-design-vue';
 import type { NRole } from '../../interface/role';
+import { SERVER_RESOURCE } from '../../constants/index.constant';
+import axios from 'axios';
 
 export default defineComponent({
     props: {
         visibleDrawer: Boolean,
-        emitCloseDrawer: Function || undefined,
+        emitCloseDrawer: Function,
+        roleId: String || null,
+        refreshAsync: Function
+    },
+    watch: {
+        roleId: String,
     },
 
     setup(props) {
 
+        onMounted(() => {
+            if (props.roleId) {
+                getById(props.roleId);
+            }
+
+        })
+
+        const getById = async (id: string) => {
+            await axios.get(
+                `${SERVER_RESOURCE}/role/${id}`
+            ).then((res) => {
+                if (res.data) {
+                    formState.name = res.data.name;
+                    formState.permissions = res.data.permissions;
+                }
+            })
+                .catch((error) => {
+                    notification.error({
+                        message: `An error has occurred`,
+                        type: 'error'
+                    });
+                    console.log(error);
+                });
+        }
         //
         const treeData: TreeProps['treeData'] = [
             {
@@ -80,59 +111,84 @@ export default defineComponent({
                 ],
             },
         ];
-        const expandedKeys = ref<string[]>(['0-0-0', '0-0-1']);
+        // const expandedKeys = ref<string[]>(['0-0-0', '0-0-1']);
         const selectedKeys = ref<string[]>(['0-0-0', '0-0-1']);
         const checkedKeys = ref<string[]>(['0-0-0', '0-0-1']);
         //
-
         const formRef = ref<FormInstance>();
         const formState = reactive<NRole.ICreateRole>({
             name: '',
             permissions: []
         });
 
-        const openNotification = () => {
-            notification.open({
-                message: 'Notification',
-                description:
-                    'Create Role successfully.',
-            });
-        };
-        watch(expandedKeys, () => {
-            console.log('expandedKeys', expandedKeys);
-        });
+        // watch(expandedKeys, () => {
+        // });
         watch(selectedKeys, () => {
-            console.log('selectedKeys', selectedKeys);
         });
         watch(checkedKeys, () => {
-            console.log('checkedKeys', checkedKeys);
         });
 
-        const createRole = async () => {
+        const closeDrawer = () => {
+            formRef.value?.resetFields();
+            checkedKeys.value = [];
+            props.emitCloseDrawer && props.emitCloseDrawer();
+        }
+
+        const onCreate = async () => {
             try {
-                console.log("Value selected", selectedKeys)
-                console.log("Checked key", checkedKeys);
                 const values = await formRef.value?.validateFields();
-                openNotification();
-                console.log('Success:', values);
-            } catch (errorInfo) {
-                console.log('Failed:', errorInfo);
+                if (values) {
+                    createRole(values as NRole.ICreateRole);
+
+                }
+            } catch (error) {
+                console.log('Failed:', error);
             }
         }
 
-        const closeDrawer = () => {
-            props.emitCloseDrawer && props.emitCloseDrawer();
+        const createRole = async (roleDto: NRole.ICreateRole) => {
+            roleDto.permissions = [];
+            checkedKeys.value.forEach((item) => {
+                if (item.split('-').length === 2) {
+                    const itemSplited = item.split('-');
+                    roleDto.permissions.push({
+                        code: itemSplited[0],
+                        name: itemSplited[1],
+                        groupCode: itemSplited[1],
+                    })
+                }
+            });
+
+            axios.post(`${SERVER_RESOURCE}/role`, roleDto)
+                .then((res) => {
+                    if (res) {
+                        notification.success({
+                            message: 'Create successfully',
+                            type: 'success'
+                        });
+                        closeDrawer();
+                        props.refreshAsync && props.refreshAsync();
+                        checkedKeys.value = []
+                    }
+                })
+                .catch((error) => {
+                    console.error(error);
+                    notification.error({
+                        message: 'An error has occurred',
+                        type: 'error'
+                    });
+                });
         }
 
         return {
             closeDrawer,
-            createRole,
+            onCreate,
             formState,
             props,
             formRef,
             treeData,
             selectedKeys,
-            checkedKeys
+            checkedKeys,
         };
     },
 });
@@ -143,7 +199,7 @@ export default defineComponent({
     <a-drawer v-model:visible="props.visibleDrawer" class="custom-class" title="Create Role" placement="right" width="500"
         @close="closeDrawer">
         <template #extra>
-            <a-button type="primary" @click="createRole">Save</a-button>
+            <a-button type="primary" @click="onCreate">Save</a-button>
         </template>
         <a-form ref="formRef" :model="formState" layout="vertical" name="dynamic_rule">
             <a-form-item label="Name:" name="name" :rules="[{ required: true, message: 'Please input role name' }]">

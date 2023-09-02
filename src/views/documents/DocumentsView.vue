@@ -3,8 +3,8 @@ import { usePagination } from 'vue-request';
 import { useMenu } from '../../stores/use-menu';
 import axios from 'axios';
 import type { IApi } from '../../interface/api-param';
-import { computed, ref } from 'vue';
-import { notification, type MenuProps, type TableProps } from 'ant-design-vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { notification, type MenuProps, type TableProps, type FormInstance } from 'ant-design-vue';
 import CreateButton from '../../components/create-button/CreateButton.vue'
 import type { NDocument } from '../../interface/document';
 import { SERVER_RESOURCE, TOKEN_KEY, ADMIN_ID } from '../../constants/index.constant';
@@ -12,6 +12,7 @@ import router from '../../router';
 import { FolderOpenOutlined, SearchOutlined } from '@ant-design/icons-vue';
 import jwt_decode from 'jwt-decode';
 import { PERMISSIONS } from '../../constants/permission';
+import { DocumentStatusEnum } from '../../enums/document-status.enum';
 
 
 export default {
@@ -29,6 +30,7 @@ export default {
     const activeKey = ref<string>();
     const endpointDocument = ref<string>('');
     const filterText = ref<string>('');
+    const rejectDocument = ref<NDocument.IDocument | null>();
     const columns = ref<{ title: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function }[]>([
       {
         title: 'Number',
@@ -60,18 +62,19 @@ export default {
       },
 
       {
-        title: 'Status',
-        dataIndex: 'isActive',
-        filters: [
-          { text: 'Active', value: true },
-          { text: 'Inactive', value: false },
-        ],
-        onFilter: (value: boolean, record: NDocument.IDocument) => record.isActive === value
+        title: 'Document Status',
+        key: 'status',
+        // dataIndex: 'isActive',
+        // filters: [
+        //   { text: 'Active', value: true },
+        //   { text: 'Inactive', value: false },
+        // ],
+        // onFilter: (value: boolean, record: NDocument.IDocument) => record.isActive === value
       },
 
       {
-        title: 'Document',
-        dataIndex: 'path',
+        title: 'Step status',
+        key: 'step',
       },
 
       {
@@ -82,8 +85,29 @@ export default {
       },
     ]);
 
+    onMounted(() => {
+      if (decodeToken?.id === ADMIN_ID) {
+        columns.value = columns.value.filter((item) => item.key !== 'step')
+      }
+      else {
+        columns.value = columns.value.filter((item) => item.dataIndex !== 'orgName')
+      }
+    })
+
+    // watch(
+    //   () => activeKey.value,
+    //   () => {
+    //     if (activeKey.value === 'assigned') {
+    //       columns.value = columns.value.splice(columns.value.length - 1, 0, {
+    //         title: 'Hello',
+    //         key: 'hello',
+    //       },)
+    //     }
+    //   }
+    // )
+
     const queryData = (params: IApi.APIParams) => {
-      params.filter = filterText.value;
+      params.title = filterText.value;
       return axios.get<NDocument.IDocument[]>(`${SERVER_RESOURCE}/document/${endpointDocument.value}`, { params });
     };
 
@@ -119,55 +143,27 @@ export default {
         case 'edit':
           router.push(`documents/edit/${item.id}`);
           break;
-
         case 'delete':
           remove(item.id);
           break;
-
         case 'approve':
-          approveDoc(item.id);
+          approveDoc(item);
           break;
-
         case 'reject':
-          rejectDoc(item.id);
+          // rejectDoc(item);
+          showModal(item);
           break;
 
         default:
           break;
       }
-
     };
-
-    const approveDoc = async (id: string) => {
-      axios.put(`${SERVER_RESOURCE}/document/approve/${id}`,)
+    const approveDoc = async (document: NDocument.IDocument) => {
+      axios.put(`${SERVER_RESOURCE}/document/approve/${document?.id}`, { procedureStepId: document?.step?.id })
         .then((res) => {
           if (res) {
             notification.success({
-              message: 'Update successfully',
-              type: 'success'
-            });
-            router.push('/departments')
-          }
-        })
-        .catch((error) => {
-          notification.error({
-            message: 'An error has occurred',
-            type: 'error'
-          });
-          console.error(error);
-        });
-    }
-
-    const rejectDoc = async (id: string) => {
-      const rejectDocDto = {
-        reason: ''
-      }
-
-      await axios.put(`${SERVER_RESOURCE}/document/reject/${id}`, rejectDocDto)
-        .then((res) => {
-          if (res) {
-            notification.success({
-              message: 'Reject successfully',
+              message: 'Approve document successfully',
               type: 'success'
             });
             refreshAsync();
@@ -181,6 +177,8 @@ export default {
           console.error(error);
         });
     }
+
+
 
     const remove = async (id: string) => {
       await axios.delete(`${SERVER_RESOURCE}/document/${id}`).then((res) => {
@@ -210,8 +208,58 @@ export default {
       refreshAsync();
     };
 
+    const isVisibleRejectModal = ref<boolean>(false);
+    const showModal = (document: NDocument.IDocument) => {
+      isVisibleRejectModal.value = true;
+      rejectDocument.value = document;
+    };
+
+    const handleOk = async () => {
+      try {
+        if (rejectDocument.value) {
+          rejectDoc(rejectDocument.value);
+        }
+      } catch (errorInfo) {
+        console.log('Failed:', errorInfo);
+      }
+    };
+
+    const reason = ref<string>('');
+
+    const rejectDoc = async (document: NDocument.IDocument) => {
+      const rejectDocDto = {
+        procedureStepId: document?.step?.id,
+        reason: reason.value
+      };
+
+      await axios.put(`${SERVER_RESOURCE}/document/reject/${document?.id}`, rejectDocDto)
+        .then((res) => {
+          if (res) {
+            notification.success({
+              message: 'Reject successfully',
+              type: 'success'
+            });
+            refreshAsync();
+            isVisibleRejectModal.value = false;
+          }
+        })
+        .catch((error) => {
+          notification.error({
+            message: 'An error has occurred',
+            type: 'error'
+          });
+          console.error(error);
+        });
+    }
+
+    const handleCancel = () => {
+      rejectDocument.value = null;
+    }
+
+
 
     return {
+      DocumentStatusEnum,
       decodeToken,
       activeKey,
       dataSource,
@@ -221,16 +269,23 @@ export default {
       ADMIN_ID,
       PERMISSIONS,
       userRights,
+      isVisibleRejectModal,
+      reason,
       onChangeTab,
       handleTableChange,
       handleMenuClick,
       onSearch,
+      handleOk,
+      handleCancel
     };
   }
 }
 </script>
 
 <template>
+  <a-modal v-model:visible="isVisibleRejectModal" title="Reason" @ok="handleOk" :onCancel="handleCancel">
+    <a-textarea v-model:value="reason" placeholder="Please in the reason" :rows="4" />
+  </a-modal>
   <div v-if="decodeToken?.id !== ADMIN_ID && (userRights || []).includes(PERMISSIONS.DOCUMENT_CREATE)"
     className="list-header">
     <CreateButton createText="Create Document" url="documents/create"></CreateButton>
@@ -240,8 +295,10 @@ export default {
     <div className="list-content table-wrapper">
       <a-tabs v-model:activeKey="activeKey" :onChange="onChangeTab">
         <a-tab-pane key="" tab="Document"></a-tab-pane>
-        <a-tab-pane key="assigned" tab="Assigned document"></a-tab-pane>
-        <a-tab-pane key="rejected" tab="Rejected document"></a-tab-pane>
+        <template v-if="decodeToken?.id !== ADMIN_ID">
+          <a-tab-pane key="assigned" tab="Assigned document"></a-tab-pane>
+          <a-tab-pane key="rejected" tab="Rejected document"></a-tab-pane>
+        </template>
       </a-tabs>
 
       <a-row className="mt-2 mb-6">
@@ -258,26 +315,35 @@ export default {
       <a-table :columns="columns" :data-source="dataSource?.data || []" :pagination="pagination" :loading="loading"
         :scroll="{ x: 576 }" @change="handleTableChange">
         <template #bodyCell="{ column, index, text }">
-          <template v-if="column.key === 'index'">{{ index + 1 }}</template>
-          <template v-if="column.dataIndex === 'path'">
-            <a :href="text" target="_blank" className="document-content w-fit flex items-center">
-              <folder-open-outlined />
-              <span className="ml-2">View</span>
-            </a>
+          <template v-if="column?.key === 'index'">{{ index + 1 }}</template>
+          <template v-if="column?.key === 'status'">
+            <div v-if="text?.status === DocumentStatusEnum.PUBLISHED" className="status-container active">
+              <p className="status-text active">Published</p>
+            </div>
+            <div v-if="text?.status === DocumentStatusEnum.PROCESSING" class="status-container inactive">
+              <p className="status-text inactive">Processing</p>
+            </div>
+            <div v-if="text?.status === DocumentStatusEnum.REJECTED" class="status-container rejected">
+              <p className="status-text rejected">Rejected</p>
+            </div>
+
           </template>
-          <template v-if="column.dataIndex === 'isActive'">
-            <div v-if="text" className="status-container active">
+          <template v-if="column?.key === 'step'">
+            <div v-if="text?.step?.status === 'approved'" className="status-container active">
               <!-- <span className="dot"></span> -->
               <p className="status-text active">Approved</p>
             </div>
-            <div v-if="!text" class="status-container inactive">
+            <div v-if="text?.step?.status === 'processing'" class="status-container inactive">
               <p className="status-text inactive">Processing</p>
             </div>
+            <div v-if="text?.step?.status === 'rejected'" class="status-container rejected">
+              <p className="status-text rejected">Rejected</p>
+            </div>
+
           </template>
 
 
-
-          <template v-if="column.key === 'action'">
+          <template v-if="column?.key === 'action'">
             <div class="dropdown-wrap">
               <a-dropdown-button :open="true">
                 <template #overlay>
@@ -292,15 +358,26 @@ export default {
                     </template>
 
                     <!-- <template v-if="activeKey === 'assigned'"> -->
-                    <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="approve">
-                      Approve
-                    </a-menu-item>
-                    <!-- </template> -->
+                    <template v-if="text?.status === DocumentStatusEnum.PROCESSING && activeKey === 'assigned'">
+                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="approve">
+                        Approve
+                      </a-menu-item>
+                      <!-- </template> -->
 
-                    <!-- <template v-if="activeKey === 'assigned'"> -->
-                    <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="reject">
-                      Reject
+                      <!-- <template v-if="activeKey === 'assigned'"> -->
+                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="reject">
+                        Reject
+                      </a-menu-item>
+                    </template>
+
+
+                    <a-menu-item key="view">
+                      <a :href="text?.path" target="_blank" className="document-content w-fit flex items-center">
+                        <folder-open-outlined />
+                        <span className="ml-2">View</span>
+                      </a>
                     </a-menu-item>
+
                     <!-- </template> -->
                   </a-menu>
                 </template>

@@ -176,29 +176,4 @@ export default defineComponent({
   </div>
 </template>
 
-<style lang="scss">
-.status-container {
-  width: fit-content;
-
-  .status-text {
-    font-size: 14px;
-    line-height: 21px;
-    font-weight: 500;
-    padding: 6px 16px;
-    margin-right: 8px;
-    border-radius: 16px;
-  }
-
-  .status-text {
-    &.active {
-      color: #027a48;
-      background-color: #ecfdf3;
-    }
-
-    &.inactive {
-      color: #b54708;
-      background-color: #fffaeb
-    }
-  }
-}
-</style>
+<style lang="scss"></style>

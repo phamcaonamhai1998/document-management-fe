@@ -31,24 +31,20 @@ export default {
     const endpointDocument = ref<string>('');
     const filterText = ref<string>('');
     const rejectDocument = ref<NDocument.IDocument | null>();
-    const columns = ref<{ title: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function }[]>([
-      {
-        title: 'Number',
-        key: 'index',
-        width: '10%',
-      },
+    const approveDocument = ref<NDocument.IDocument | null>();
 
+    const isVisibleAssignModal = ref<boolean>(false);
+
+    const columns = ref<{ title: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function }[]>([
       {
         title: 'Title',
         dataIndex: 'title',
         width: '20%',
         sorter: (a: NDocument.IDocument, b: NDocument.IDocument) => a.title.localeCompare(b.title),
-
       },
-
       {
-        title: 'Description',
-        dataIndex: 'description',
+        title: 'User Name',
+        dataIndex: 'userFullName',
       },
 
       {
@@ -65,16 +61,18 @@ export default {
         title: 'Document Status',
         key: 'status',
         // dataIndex: 'isActive',
-        // filters: [
-        //   { text: 'Active', value: true },
-        //   { text: 'Inactive', value: false },
-        // ],
-        // onFilter: (value: boolean, record: NDocument.IDocument) => record.isActive === value
+        filters: [
+          { text: 'Published', value: DocumentStatusEnum.PUBLISHED },
+          { text: 'Processing', value: DocumentStatusEnum.PROCESSING },
+          { text: 'Rejected', value: DocumentStatusEnum.REJECTED },
+        ],
+        onFilter: (value: string, record: NDocument.IDocument) => record.status === value
       },
 
       {
         title: 'Step status',
         key: 'step',
+
       },
 
       {
@@ -94,25 +92,12 @@ export default {
       }
     })
 
-    // watch(
-    //   () => activeKey.value,
-    //   () => {
-    //     if (activeKey.value === 'assigned') {
-    //       columns.value = columns.value.splice(columns.value.length - 1, 0, {
-    //         title: 'Hello',
-    //         key: 'hello',
-    //       },)
-    //     }
-    //   }
-    // )
-
     const queryData = (params: IApi.APIParams) => {
       params.title = filterText.value;
       return axios.get<NDocument.IDocument[]>(`${SERVER_RESOURCE}/document/${endpointDocument.value}`, { params });
     };
 
     const { data: dataSource, run, loading, current, pageSize, refreshAsync } = usePagination(queryData, {
-      // formatResult: res => res.data.results,
       pagination: {
         currentKey: "page",
         pageSizeKey: "results",
@@ -120,7 +105,6 @@ export default {
     });
 
     const pagination = computed(() => ({
-      data: dataSource || [],
       total: dataSource.value?.data.length,
       current: current.value,
       pageSize: pageSize.value,
@@ -158,25 +142,7 @@ export default {
           break;
       }
     };
-    const approveDoc = async (document: NDocument.IDocument) => {
-      axios.put(`${SERVER_RESOURCE}/document/approve/${document?.id}`, { procedureStepId: document?.step?.id })
-        .then((res) => {
-          if (res) {
-            notification.success({
-              message: 'Approve document successfully',
-              type: 'success'
-            });
-            refreshAsync();
-          }
-        })
-        .catch((error) => {
-          notification.error({
-            message: 'An error has occurred',
-            type: 'error'
-          });
-          console.error(error);
-        });
-    }
+
 
 
 
@@ -252,8 +218,56 @@ export default {
         });
     }
 
+    const passwordCert = ref<string | null>('');
+    const isSign = ref<boolean>(false);
+
+
     const handleCancel = () => {
       rejectDocument.value = null;
+      approveDocument.value = null;
+    }
+
+    const onAssignSignature = () => {
+      approveDocument.value && approveDoc(approveDocument.value);
+    }
+
+
+    const approveDoc = async (document: NDocument.IDocument) => {
+      const approveDocDto = {
+        procedureStepId: document?.step?.id,
+        isSign: isSign.value,
+        signaturePassword: passwordCert.value || null
+      };
+
+      axios.put(`${SERVER_RESOURCE}/document/approve/${document?.id}`, approveDocDto)
+        .then((res) => {
+          if (res) {
+            notification.success({
+              message: 'Approve document successfully',
+              type: 'success'
+            });
+            refreshAsync();
+          }
+        })
+        .catch((error) => {
+          notification.error({
+            message: 'An error has occurred',
+            type: 'error'
+          });
+          console.error(error);
+        });
+    }
+
+    const confirmSign = (document: NDocument.IDocument) => {
+      approveDocument.value = document;
+      isSign.value = true;
+      isVisibleAssignModal.value = true;
+    }
+
+    const cancelSign = (document: NDocument.IDocument) => {
+      isSign.value = false;
+      passwordCert.value = null;
+      approveDoc(document);
     }
 
 
@@ -276,7 +290,12 @@ export default {
       handleMenuClick,
       onSearch,
       handleOk,
-      handleCancel
+      handleCancel,
+      onAssignSignature,
+      isVisibleAssignModal,
+      confirmSign,
+      cancelSign,
+      passwordCert
     };
   }
 }
@@ -286,6 +305,12 @@ export default {
   <a-modal v-model:visible="isVisibleRejectModal" title="Reason" @ok="handleOk" :onCancel="handleCancel">
     <a-textarea v-model:value="reason" placeholder="Please in the reason" :rows="4" />
   </a-modal>
+
+  <a-modal v-model:visible="isVisibleAssignModal" title="Assign Signature" @ok="onAssignSignature"
+    :onCancel="handleCancel">
+    <a-input-password v-model:value="passwordCert" placeholder="Please input password signature" />
+  </a-modal>
+
   <div v-if="decodeToken?.id !== ADMIN_ID && (userRights || []).includes(PERMISSIONS.DOCUMENT_CREATE)"
     className="list-header">
     <CreateButton createText="Create Document" url="documents/create"></CreateButton>
@@ -295,7 +320,7 @@ export default {
     <div className="list-content table-wrapper">
       <a-tabs v-model:activeKey="activeKey" :onChange="onChangeTab">
         <a-tab-pane key="" tab="Document"></a-tab-pane>
-        <template v-if="decodeToken?.id !== ADMIN_ID">
+        <template v-if="decodeToken?.id !== ADMIN_ID && (userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)">
           <a-tab-pane key="assigned" tab="Assigned document"></a-tab-pane>
           <a-tab-pane key="rejected" tab="Rejected document"></a-tab-pane>
         </template>
@@ -359,8 +384,12 @@ export default {
 
                     <!-- <template v-if="activeKey === 'assigned'"> -->
                     <template v-if="text?.status === DocumentStatusEnum.PROCESSING && activeKey === 'assigned'">
-                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)" key="approve">
-                        Approve
+                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)">
+                        <!-- Approve -->
+                        <a-popconfirm title="Do you want to sign for doc" @confirm="confirmSign(text)"
+                          @cancel="cancelSign(text)">
+                          Approve
+                        </a-popconfirm>
                       </a-menu-item>
                       <!-- </template> -->
 
@@ -371,8 +400,8 @@ export default {
                     </template>
 
 
-                    <a-menu-item key="view">
-                      <a :href="text?.path" target="_blank" className="document-content w-fit flex items-center">
+                    <a-menu-item :href="text.path" key="view">
+                      <a :href="text?.path" target="_blank" className="document-content w-fit flex items-center bg-none">
                         <folder-open-outlined />
                         <span className="ml-2">View</span>
                       </a>

@@ -17,10 +17,10 @@ export default defineComponent({
         store.onSelectedKeys(["roles"]);
         const route = useRoute();
         const id: string = route.params.id as string;
-        const token = localStorage.getItem(TOKEN_KEY);
-        const decodeToken: any = token && jwt_decode(token);
+        // const token = localStorage.getItem(TOKEN_KEY);
+        // const decodeToken: any = token && jwt_decode(token);
         // const orgClaim = decodeToken?.org ? JSON.parse(decodeToken?.org) : null;
-        const depClaim = decodeToken?.department ? JSON.parse(decodeToken?.department) : null;
+        // const depClaim = decodeToken?.department ? JSON.parse(decodeToken?.department) : null;
 
         const treeData: TreeProps['treeData'] = [
             {

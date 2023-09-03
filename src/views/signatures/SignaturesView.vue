@@ -8,27 +8,24 @@ import { computed } from 'vue';
 import CreateButton from '../../components/create-button/CreateButton.vue'
 import { SERVER_RESOURCE } from '../../constants/index.constant';
 import type { NSignature } from '../../interface/signature';
-import router from '../../router';
 
 
 const columns = [
   {
     title: 'Number',
-    key: 'index'
+    key: 'index',
+    width: '10%',
   },
   {
     title: 'Name',
+    key: 'name',
     dataIndex: 'name',
-    sorter: true,
-    width: '20%',
+    width: '75%',
   },
   {
-    title: 'Public key',
-    dataIndex: 'publicKey',
-  },
-  {
-    title: 'Private key',
-    dataIndex: 'privateKey',
+    title: 'Status',
+    key: 'status',
+    width: '10%',
   },
   {
     title: 'Action',
@@ -39,7 +36,7 @@ const columns = [
 ];
 
 const queryData = (params: IApi.APIParams) => {
-  return axios.get<NSignature.ISignature[]>(`${SERVER_RESOURCE}/signature`, { params });
+  return axios.get<NSignature.ISignature[]>(`${SERVER_RESOURCE}/user/certs`, { params });
 };
 
 export default {
@@ -82,31 +79,32 @@ export default {
     };
 
     const handleMenuClick = (signature: NSignature.ISignature, event: any) => {
-      if (event.key === 'edit') {
-        router.push(`signature/edit/${signature.id}`)
-      } else if (event.key === 'delete') {
-        remove(signature.id)
+      if (event.key === 'set-default') {
+        setDefault(signature?.id);
+      } else {
+        return;
       }
     };
 
-    const remove = async (id: string) => {
-      await axios.delete(`${SERVER_RESOURCE}/role/${id}`).then((res) => {
-        if (res) {
-          notification.success({
-            message: 'Delete successfully',
-            type: 'success'
+    const setDefault = (id: string) => {
+      axios.put(`${SERVER_RESOURCE}/user/certs-default/${id}`)
+        .then((res) => {
+          if (res) {
+            notification.success({
+              message: 'Set default signature successfully',
+              type: 'success'
+            });
+            refreshAsync();
+          }
+        })
+        .catch((error) => {
+          notification.error({
+            message: 'An error has occurred',
+            type: 'error'
           });
-          refreshAsync();
-        }
-      }).catch((error) => {
-        console.error(error);
-        notification.error({
-          message: 'An error has occurred',
-          type: 'error'
+          console.error(error);
         });
-      });;
     }
-
 
     return {
       dataSource,
@@ -131,17 +129,22 @@ export default {
         :scroll="{ x: 576 }" @change="handleTableChange">
         <template #bodyCell="{ column, index, text }">
           <template v-if="column.key === 'index'">{{ index + 1 }}</template>
-          <template v-if="column.dataIndex === 'name'">{{ text.first }} {{ text.last }}</template>
+          <template v-if="column.key === 'status'">
+            <div v-if="text.isDefault" className="status-container active">
+              <!-- <span className="dot"></span> -->
+              <p className="status-text active">Default</p>
+            </div>
+            <div v-if="!text.isDefault" class="status-container inactive">
+              <p className="status-text inactive">In active</p>
+            </div>
+          </template>
           <template v-if="column.key === 'action'">
             <div class="dropdown-wrap">
               <a-dropdown-button>
                 <template #overlay>
-                  <a-menu @click="(event: MenuProps) => handleMenuClick(text.id.value, event)">
-                    <a-menu-item key="edit">
-                      Edit
-                    </a-menu-item>
-                    <a-menu-item key="delete">
-                      Delete
+                  <a-menu @click="(event: MenuProps) => handleMenuClick(text, event)">
+                    <a-menu-item key="set-default">
+                      Set default
                     </a-menu-item>
                   </a-menu>
                 </template>

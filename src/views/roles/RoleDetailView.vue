@@ -42,6 +42,14 @@ export default defineComponent({
                     {
                         title: 'Delete Role',
                         key: 'Delete-Role',
+                    },
+                    {
+                        title: 'Delete Role',
+                        key: 'Delete-Role',
+                    },
+                    {
+                        title: 'Assign Role',
+                        key: 'Assign-Role',
                     }
                 ],
             },

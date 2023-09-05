@@ -59,7 +59,7 @@ export default defineComponent({
         const role = JSON.parse(decodeToken?.role);
 
         onMounted(() => {
-            if (orgClaim && role.Id === ORG_OWNER_ID) {
+            if (orgClaim && role.Id === ORG_OWNER_ID && !id) {
                 getAvailableDepsToCreateOwner(orgClaim.Id);
             }
             if (orgClaim && depClaim) {
@@ -118,7 +118,7 @@ export default defineComponent({
 
         const getRole = () => {
             const getRoleRequest: getRoleRequest = {
-                departmentId: depIdState.value || '',
+                departmentId: depIdState.value || depClaim.Id || '',
             }
             axios.get(`${SERVER_RESOURCE}/role/available`, { params: getRoleRequest })
                 .then((res) => {

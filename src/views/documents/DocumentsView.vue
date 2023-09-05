@@ -384,7 +384,9 @@ export default {
                 <template #overlay>
                   <a-menu @click="(event: MenuProps) => handleMenuClick(text, event)">
                     <template v-if="!activeKey">
-                      <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_UPDATE)" key="edit">
+                      <a-menu-item
+                        v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_UPDATE) && text.status === DocumentStatusEnum.PROCESSING"
+                        key="edit">
                         Edit
                       </a-menu-item>
                       <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_DELETE)" key="delete">

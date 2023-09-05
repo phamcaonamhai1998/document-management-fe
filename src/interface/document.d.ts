@@ -34,11 +34,7 @@ export declare namespace NDocument {
     driveDocId: string
   }
 
-  export interface IUpdateDocumentRequest {
-    name: string
-    phone: string
-    email: string
-  }
+  export interface IUpdateDocumentRequest extends FormStateDocumentDto {}
 
   export interface IAssignDocument {
     id: string

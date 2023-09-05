@@ -144,9 +144,42 @@ export default defineComponent({
                 });
         }
 
+        const onUpdate = async () => {
+            try {
+                const values = await formRef.value?.validateFields();
+                if (values) {
+                    updateDep(values as NDocument.IUpdateDocumentRequest);
+                }
+            } catch (err) {
+                console.log('Failed:', err);
+            }
+        };
+
+
+        const updateDep = (docUpdateDto: NDocument.IUpdateDocumentRequest) => {
+            axios.put(`${SERVER_RESOURCE}/document/${id}`, docUpdateDto)
+                .then((res) => {
+                    if (res) {
+                        notification.success({
+                            message: 'Update successfully',
+                            type: 'success'
+                        });
+                        router.push('/documents')
+                    }
+                })
+                .catch((error) => {
+                    notification.error({
+                        message: 'An error has occurred',
+                        type: 'error'
+                    });
+                    console.error(error);
+                });
+        }
+
 
 
         return {
+            id,
             urlAction,
             formState,
             formRef,
@@ -157,6 +190,7 @@ export default defineComponent({
             filterOption,
             beforeUpload,
             handleChange,
+            onUpdate
         };
 
 
@@ -168,14 +202,16 @@ export default defineComponent({
 <template>
     <div class="block-container">
         <div class="block-heading">
-            <span>Create Document</span>
+            <span v-if="!id">Create Document</span>
+            <span v-if="id">Update Document</span>
             <div className="header-actions">
                 <a-button type="primary">
                     <router-link :to="{ name: 'documents' }">
                         Back
                     </router-link>
                 </a-button>
-                <a-button type="primary" @click="onCreate">Add new</a-button>
+                <a-button v-if="!id" type="primary" @click="onCreate">Add</a-button>
+                <a-button v-if="id" type="primary" @click="onUpdate">Update</a-button>
             </div>
         </div>
 

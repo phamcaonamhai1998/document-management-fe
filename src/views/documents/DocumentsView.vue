@@ -250,8 +250,18 @@ export default {
           }
         })
         .catch((error) => {
+          let titleError: string = '';
+          switch (error.response?.data?.message) {
+            case 'password_of_signature_is_invalid':
+              titleError = 'Password of signature is invalid';
+              break;
+            default:
+              titleError = 'An error has occurred';
+              break;
+          }
+
           notification.error({
-            message: 'An error has occurred',
+            message: titleError,
             type: 'error'
           });
           console.error(error);
@@ -386,8 +396,8 @@ export default {
                     <template v-if="text?.status === DocumentStatusEnum.PROCESSING && activeKey === 'assigned'">
                       <a-menu-item v-if="(userRights || []).includes(PERMISSIONS.DOCUMENT_APPROVE)">
                         <!-- Approve -->
-                        <a-popconfirm title="Do you want to sign for doc" @confirm="confirmSign(text)"
-                          @cancel="cancelSign(text)">
+                        <a-popconfirm title="Options approve" @confirm="confirmSign(text)" @cancel="cancelSign(text)"
+                          okText="Approve with signature" cancelText="Approval without signature">
                           Approve
                         </a-popconfirm>
                       </a-menu-item>
@@ -448,5 +458,9 @@ export default {
     color: unset;
     background-color: unset;
   }
+}
+
+.ant-popover-buttons {
+  display: flex;
 }
 </style>

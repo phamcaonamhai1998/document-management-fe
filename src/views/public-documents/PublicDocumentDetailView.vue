@@ -3,13 +3,15 @@
 import { computed, defineComponent, onMounted, reactive, ref } from 'vue';
 import { useMenu } from '../../stores/use-menu';
 import '../../styles/_variables.scss';
-import { notification, type FormInstance, type MenuProps, type TableProps } from 'ant-design-vue';
+import { notification, type TableProps } from 'ant-design-vue';
 import axios from 'axios';
 import { useRoute } from 'vue-router';
 import { SERVER_RESOURCE } from '../../constants/index.constant';
 import type { NDocument } from '../../interface/document';
 import type { IApi } from '../../interface/api-param';
 import { usePagination } from 'vue-request';
+import { DownloadOutlined } from '@ant-design/icons-vue';
+
 
 
 interface IDocStep {
@@ -44,6 +46,10 @@ const columns = [
         onFilter: (value: boolean, record: IDocStep) => record.isSigned === value
     },
     {
+        title: 'Path',
+        key: 'path',
+    },
+    {
         title: 'Action',
         key: 'action',
         fixed: 'right',
@@ -53,6 +59,7 @@ const columns = [
 
 export default defineComponent({
     components: {
+        DownloadOutlined
     },
     setup() {
         const store = useMenu();
@@ -105,7 +112,7 @@ export default defineComponent({
                 .then((res) => {
                     if (res) {
                         notification.success({
-                            message: 'Create successfully',
+                            message: 'Valid Signature',
                             type: 'success'
                         });
                     }
@@ -155,6 +162,9 @@ export default defineComponent({
                 :scroll="{ x: 576 }" @change="handleTableChange">
                 <template #bodyCell="{ column, index, text }">
                     <template v-if="column.key === 'index'">{{ index + 1 }}</template>
+                    <template v-if="column.key === 'path' && text.isSigned">
+                        <a-button type="primary" :href="text.docSignedPath"><DownloadOutlined />View</a-button>
+                    </template>
                     <template v-if="column.key === 'action'">
                         <a-button type="primary" @click="checkSign(text)">Check Signature</a-button>
                     </template>

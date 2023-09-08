@@ -1,6 +1,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
-import { UserOutlined, FileOutlined, AuditOutlined, AppstoreOutlined, ProfileOutlined, PartitionOutlined, CodeSandboxOutlined, ForkOutlined } from '@ant-design/icons-vue';
+import { UserOutlined, FileOutlined, AuditOutlined, AppstoreOutlined, ProfileOutlined, PartitionOutlined, CodeSandboxOutlined, ForkOutlined,FileProtectOutlined } from '@ant-design/icons-vue';
 import type { MenuProps } from 'ant-design-vue';
 import { useMenu } from '../stores/use-menu';
 import { storeToRefs } from 'pinia';
@@ -18,7 +18,8 @@ export default defineComponent({
     ProfileOutlined,
     PartitionOutlined,
     CodeSandboxOutlined,
-    ForkOutlined
+    ForkOutlined,
+    FileProtectOutlined,
   },
   setup() {
     //store
@@ -120,7 +121,7 @@ export default defineComponent({
 
     <a-menu-item key="public-documents">
       <template #icon>
-        <file-outlined />
+        <FileProtectOutlined />
       </template>
       <RouterLink to="/public-documents">Public Document</RouterLink>
     </a-menu-item>

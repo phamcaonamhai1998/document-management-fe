@@ -17,6 +17,8 @@ import OrganizationDetailViewVue from '../views/organizations/OrganizationDetail
 import DepartmentsViewVue from '../views/departments/DepartmentsView.vue'
 import DepartmentDetailViewVue from '../views/departments/DepartmentDetailView.vue'
 import { TOKEN_KEY } from '../constants/index.constant'
+import PublicDocumentView from '../views/public-documents/PublicDocumentView.vue'
+import PublicDocumentDetailView from '../views/public-documents/PublicDocumentDetailView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -143,6 +145,18 @@ const router = createRouter({
           path: '/signatures/create',
           name: 'Create Signature',
           component: SignatureDetailView
+        },
+
+        //Public Documents
+        {
+          path: '/public-documents',
+          name: 'Public Documents',
+          component: PublicDocumentView
+        },
+        {
+          path: '/public-documents/detail/:id',
+          name: 'Detail Public Document Page',
+          component: PublicDocumentDetailView
         }
       ]
     },

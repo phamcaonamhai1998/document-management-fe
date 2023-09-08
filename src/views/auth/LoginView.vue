@@ -33,6 +33,10 @@ export default {
                     if (res.data.accessToken) {
                         localStorage.setItem(TOKEN_KEY, res.data.accessToken);
                         router.push('/')
+                        notification.success({
+                            message: 'Login successfully',
+                            type: 'success'
+                        });
                     }
                 })
                 .catch((error) => {

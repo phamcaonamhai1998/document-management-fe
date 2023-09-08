@@ -10,8 +10,6 @@ import router from '../../router';
 import { SERVER_RESOURCE } from '../../constants/index.constant';
 import type { NOrganization } from '../../interface/organization';
 
-
-
 const columns = [
     {
         title: 'Number',

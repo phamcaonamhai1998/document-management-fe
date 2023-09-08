@@ -139,7 +139,6 @@ export default {
                         </div>
                     </template>
                 </template>
-
             </a-table>
         </div>
     </div>

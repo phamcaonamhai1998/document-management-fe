@@ -27,7 +27,7 @@ export default {
     let userRights: string[] = decodeToken?.rights || [];
     const store = useMenu();
     store.onSelectedKeys(['documents']);
-    const activeKey = ref<string>();
+    const activeKey = ref<string>('');
     const endpointDocument = ref<string>('');
     const filterText = ref<string>('');
     const rejectDocument = ref<NDocument.IDocument | null>();
@@ -35,7 +35,7 @@ export default {
 
     const isVisibleAssignModal = ref<boolean>(false);
 
-    const columns = ref<{ title: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function }[]>([
+    const columns = ref<{ title?: string, key?: string, width?: string | number, dataIndex?: string, fixed?: string, filters?: Array<any>, onFilter?: Function, sorter?: Function, className?: string }[]>([
       {
         title: 'Title',
         dataIndex: 'title',
@@ -60,7 +60,6 @@ export default {
       {
         title: 'Document Status',
         key: 'status',
-        // dataIndex: 'isActive',
         filters: [
           { text: 'Published', value: DocumentStatusEnum.PUBLISHED },
           { text: 'Processing', value: DocumentStatusEnum.PROCESSING },
@@ -68,13 +67,10 @@ export default {
         ],
         onFilter: (value: string, record: NDocument.IDocument) => record.status === value
       },
-
       {
         title: 'Step status',
         key: 'step',
-
       },
-
       {
         title: 'Action',
         key: 'action',

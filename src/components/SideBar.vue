@@ -117,6 +117,13 @@ export default defineComponent({
       </template>
       <RouterLink to="/signatures">Digital signatures</RouterLink>
     </a-menu-item>
+
+    <a-menu-item key="public-documents">
+      <template #icon>
+        <file-outlined />
+      </template>
+      <RouterLink to="/public-documents">Public Document</RouterLink>
+    </a-menu-item>
   </a-menu>
 </template>
 

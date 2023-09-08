@@ -244,9 +244,10 @@ export default defineComponent({
                 </a-form-item>
 
 
-                <a-form-item label="Description:" name="description">
+                <a-form-item label="Abstract:" name="description">
                     <a-textarea placeholder="Description..." v-model:value="formState.description" show-count :rows="3" />
                 </a-form-item>
+
 
             </a-form>
 

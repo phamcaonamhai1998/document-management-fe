@@ -165,14 +165,14 @@ export default defineComponent({
             try {
                 const values = await formRef.value?.validateFields();
                 if (values) {
-                    updateOrg(values as NProcedure.IUpdateProcedureRequest);
+                    updateProc(values as NProcedure.IUpdateProcedureRequest);
                 }
             } catch (errorInfo) {
                 console.log('Failed:', errorInfo);
             }
         };
 
-        const updateOrg = (procUpdateDto: NProcedure.IUpdateProcedureRequest) => {
+        const updateProc = (procUpdateDto: NProcedure.IUpdateProcedureRequest) => {
             axios.put(`${SERVER_RESOURCE}/procedure/${id}`, procUpdateDto)
                 .then((res) => {
                     if (res) {
@@ -184,8 +184,27 @@ export default defineComponent({
                     router.push('/procedures')
                 })
                 .catch((error) => {
+                    let titleError: string = '';
+                    if (error.response?.data?.message) {
+                        switch (error.response?.data?.message) {
+                            case 'payload_is_empty':
+                                titleError = 'Payload is empty';
+                                break;
+                            case 'id_is_empty':
+                                titleError = 'Id is empty'
+                                break;
+                            case 'proc_is_active':
+                                titleError = 'Procedure is active'
+                                break;
+                            default:
+                                titleError = 'An error has occurred';
+                        }
+                    }
+                    else {
+                        titleError = 'An error has occurred';
+                    }
                     notification.error({
-                        message: 'An error has occurred',
+                        message: titleError,
                         type: 'error'
                     });
                 });

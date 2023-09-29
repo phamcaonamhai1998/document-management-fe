@@ -105,7 +105,7 @@ export default defineComponent({
                 .then((res) => {
                     if (res) {
                         notification.success({
-                            message: 'Create successfully',
+                            message: 'Valid signature',
                             type: 'success'
                         });
                     }

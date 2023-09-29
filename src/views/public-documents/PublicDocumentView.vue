@@ -31,7 +31,10 @@ const columns = [
         title: 'Abstract',
         dataIndex: 'description',
     },
-
+    {
+        title: 'Path',
+        key: 'path',
+    },
     {
         title: 'Action',
         key: 'action',
@@ -126,6 +129,10 @@ export default {
                 :scroll="{ x: 576 }" @change="handleTableChange">
                 <template #bodyCell="{ column, index, text }">
                     <template v-if="column.key === 'index'">{{ index + 1 }}</template>
+
+                    <template v-if="column.key === 'path'">
+
+                    </template>
 
                     <template v-if="column.key === 'action'">
                         <a-button type="primary" @click="viewDetail(text)">View Detail</a-button>
